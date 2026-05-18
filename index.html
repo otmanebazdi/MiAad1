@@ -24,7 +24,13 @@ function loginPatient(){
     method:'POST',
     mode:'no-cors',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,cni,phone,date:new Date().toISOString()})
+body:JSON.stringify({
+  name,
+  cni,
+  phone,
+  city:"تطوان",
+  date:new Date().toISOString()
+})
   }).catch(()=>{});
 
   document.getElementById('loginScreen').style.display='none';
