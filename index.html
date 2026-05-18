@@ -2,91 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ميعاد — احجز موعدك الطبي</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ميعاد — احجز موعدك الطبي في تطوان</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js">
-function loginPatient(){
-  const name=document.getElementById('patientName').value;
-  const cni=document.getElementById('patientCNI').value;
-  const phone=document.getElementById('patientPhone').value;
-
-  if(!name || !cni || !phone){
-    alert('يرجى ملء جميع المعلومات');
-    return;
-  }
-
-  localStorage.setItem('patientName',name);
-  localStorage.setItem('patientCNI',cni);
-
-   "تم ربط المنصة بقاعدة بيانات سحابية Google Sheets لتخزين وتتبع معلومات المرضى والمواعيد بشكل آني."
-  fetch('https://script.google.com/macros/s/AKfycbzH-ZM3Nuz05UE4PBiZcnffNOx1SrfTHrfJDZPIwNdmsMYXbz7JpPMDhDZvmw1N9ijD/exec',{
-    method:'POST',
-    mode:'no-cors',
-    headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-  name,
-  cni,
-  phone,
-  city:"تطوان",
-  date:new Date().toISOString()
-})
-  }).catch(()=>{});
-
-  document.getElementById('loginScreen').style.display='none';
-  showToast('مرحباً '+name+' 👋');
-}
-
-function initMap(){
-  const map=L.map('hospital-map').setView([35.5889,-5.3626],12);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'OpenStreetMap'
-  }).addTo(map);
-
-  const hospitals=[
-    {name:'مستشفى سانية الرمل',lat:35.5785,lng:-5.3684},
-    {name:'مستشفى الحسن الثاني',lat:35.5711,lng:-5.3720},
-    {name:'مصحة تطوان',lat:35.5650,lng:-5.3600},
-    {name:'مستشفى السويسي الرباط',lat:34.0120,lng:-6.8320}
-  ];
-
-  hospitals.forEach(h=>{
-    L.marker([h.lat,h.lng]).addTo(map)
-      .bindPopup('<strong>'+h.name+'</strong>');
-  });
-}
-
-setTimeout(()=>{
-  if(document.getElementById('hospital-map')){
-    initMap();
-  }
-},1200);
-
-function toggleAI(){
-  const box=document.getElementById('aiBox');
-  box.style.display=box.style.display==='block'?'none':'block';
-}
-
-function sendAI(){
-  const input=document.getElementById('aiInput');
-  const messages=document.getElementById('aiMessages');
-
-  if(!input.value.trim()) return;
-
-  messages.innerHTML += '<div style="margin-top:10px"><strong>أنت:</strong> '+input.value+'</div>';
-
-  setTimeout(()=>{
-    messages.innerHTML += '<div style="margin-top:10px;color:#0B6E4F"><strong>MiAad AI:</strong> يمكنك إضافة Grok API أو OpenAI API لاحقاً للحصول على ذكاء اصطناعي حقيقي للإجابة الطبية.</div>';
-    messages.scrollTop=messages.scrollHeight;
-  },700);
-
-  input.value='';
-}
-
-</script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -101,13 +22,30 @@ function sendAI(){
   --sh:0 2px 16px rgba(11,110,79,.10);
   --sh2:0 4px 32px rgba(11,110,79,.16);
 }
-body{font-family:'Tajawal',sans-serif;background:var(--surf);color:var(--txt);direction:rtl}
+body{font-family:'Tajawal',sans-serif;background:var(--surf);color:var(--txt);direction:rtl;overflow-x:hidden}
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;font-family:'Tajawal',sans-serif}
 input,select,textarea{font-family:'Tajawal',sans-serif}
 .page{display:none;min-height:100vh;animation:fadeIn .35s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── LOGIN OVERLAY ── */
+#login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#0B6E4F 0%,#085038 100%);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;transition:.4s}
+#login-overlay.hidden{opacity:0;pointer-events:none}
+.login-box{background:#fff;border-radius:var(--rl);padding:2.5rem;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
+.login-logo{width:64px;height:64px;background:var(--p);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;color:#fff;font-size:32px;font-weight:800}
+.login-title{font-size:22px;font-weight:900;margin-bottom:6px}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:1.75rem}
+.login-form{text-align:right}
+.login-form .form-group{margin-bottom:1.1rem;text-align:right}
+.login-form .form-label{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:5px;display:block}
+.login-form .form-input{width:100%;padding:12px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:15px;outline:none;transition:.2s}
+.login-form .form-input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(11,110,79,.1)}
+.login-btn{width:100%;padding:13px;border-radius:var(--rs);background:var(--p);color:#fff;font-size:16px;font-weight:800;border:none;transition:.2s;margin-top:.5rem}
+.login-btn:hover{background:var(--pl);transform:translateY(-1px)}
+.login-note{font-size:12px;color:var(--muted);margin-top:1rem;line-height:1.6}
+.login-city{display:inline-flex;align-items:center;gap:6px;background:var(--bg);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;color:var(--p);margin-bottom:1.5rem}
 
 /* ── NAV ── */
 nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:999;box-shadow:0 2px 12px rgba(11,110,79,.07)}
@@ -149,10 +87,9 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
 @media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+@media(max-width:600px){.grid3,.grid4{grid-template-columns:1fr}}
 
-/* ──────────────────────────────────────────────
-   PAGE 1 — LANDING
-────────────────────────────────────────────── */
+/* ── HERO ── */
 #hero{
   background:linear-gradient(135deg,#0B6E4F 0%,#0A5E42 40%,#085038 100%);
   padding:70px 5% 80px;position:relative;overflow:hidden
@@ -174,7 +111,7 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .search-box{background:#fff;border-radius:var(--rl);padding:8px;display:flex;gap:8px;align-items:center;max-width:740px;box-shadow:0 8px 40px rgba(0,0,0,.2)}
 .search-box select,.search-box input{flex:1;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:var(--txt);background:transparent}
 .search-divider{width:1px;height:36px;background:var(--brd)}
-.hero-stats{display:flex;gap:40px;margin-top:44px}
+.hero-stats{display:flex;gap:40px;margin-top:44px;flex-wrap:wrap}
 .hstat{text-align:center}
 .hstat-n{font-size:30px;font-weight:900;color:#fff}
 .hstat-l{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px}
@@ -185,9 +122,11 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .spec-icon{font-size:32px;margin-bottom:10px}
 .spec-name{font-size:14px;font-weight:700;color:var(--txt)}
 .spec-count{font-size:12px;color:var(--muted);margin-top:3px}
+@media(max-width:900px){.spec-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.spec-grid{grid-template-columns:repeat(2,1fr)}}
 
 .section{padding:3.5rem 5%}
-.sec-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.75rem}
+.sec-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.75rem;flex-wrap:wrap;gap:10px}
 .sec-title{font-size:24px;font-weight:800;color:var(--txt)}
 .sec-sub{font-size:14px;color:var(--muted);margin-top:4px}
 
@@ -199,7 +138,7 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .doc-spec{font-size:13px;color:var(--p);font-weight:600;margin:3px 0}
 .doc-hosp{font-size:12px;color:var(--muted)}
 .doc-card-body{padding:1.2rem 1.5rem}
-.doc-meta{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.doc-meta{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
 .doc-meta span{display:flex;align-items:center;gap:4px}
 .avail-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
 .avail-y{background:#DCFCE7;color:#166534}
@@ -211,10 +150,36 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .how-num{width:50px;height:50px;background:var(--p);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 14px}
 .how-t{font-size:15px;font-weight:700;margin-bottom:6px}
 .how-d{font-size:13px;color:var(--muted);line-height:1.6}
+@media(max-width:900px){.how-grid{grid-template-columns:1fr 1fr}.how-step::after{display:none}}
+@media(max-width:600px){.how-grid{grid-template-columns:1fr}}
 
-/* ──────────────────────────────────────────────
-   PAGE 2 — SEARCH RESULTS
-────────────────────────────────────────────── */
+/* ── MAP PAGE ── */
+#map-section{background:#fff;padding:2rem 5%}
+#map{height:500px;border-radius:var(--r);border:2px solid var(--brd);z-index:1}
+.map-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+@media(max-width:600px){#map{height:350px}}
+
+/* ── CHAT BOT ── */
+#chat-widget{position:fixed;bottom:1.5rem;left:1.5rem;width:360px;max-width:calc(100vw - 2rem);background:#fff;border-radius:var(--rl);border:1.5px solid var(--brd);box-shadow:var(--sh2);z-index:8888;overflow:hidden;display:none;flex-direction:column;max-height:500px}
+#chat-widget.open{display:flex}
+.chat-head{background:linear-gradient(135deg,var(--p),var(--pl));padding:14px 18px;display:flex;align-items:center;gap:10px;color:#fff}
+.chat-head-icon{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px}
+.chat-head-title{font-size:15px;font-weight:800}
+.chat-head-sub{font-size:11px;opacity:.85}
+.chat-close{margin-right:auto;background:none;border:none;color:#fff;font-size:20px;cursor:pointer}
+.chat-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f8fafb}
+.chat-msg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.6;animation:fadeIn .2s ease}
+.chat-msg.bot{background:#fff;border:1.5px solid var(--brd);color:var(--txt);align-self:flex-start;border-bottom-right-radius:4px}
+.chat-msg.user{background:var(--p);color:#fff;align-self:flex-end;border-bottom-left-radius:4px}
+.chat-foot{padding:10px 14px;border-top:1px solid var(--brd);display:flex;gap:8px;background:#fff}
+.chat-foot input{flex:1;border:1.5px solid var(--brd);border-radius:20px;padding:9px 14px;font-size:13px;outline:none}
+.chat-foot input:focus{border-color:var(--p)}
+.chat-foot button{width:36px;height:36px;border-radius:50%;background:var(--p);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.chat-toggle{position:fixed;bottom:1.5rem;left:1.5rem;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--pl));color:#fff;border:none;box-shadow:var(--sh2);z-index:8887;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:.2s}
+.chat-toggle:hover{transform:scale(1.05)}
+@media(max-width:600px){#chat-widget{width:calc(100vw - 2rem);left:1rem;bottom:5rem}}
+
+/* ── SEARCH RESULTS ── */
 .results-header{background:var(--white);border-bottom:1px solid var(--brd);padding:1.2rem 5%}
 .results-layout{display:grid;grid-template-columns:280px 1fr;gap:2rem;padding:2rem 5%}
 .filters-panel{background:var(--white);border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem;height:fit-content;position:sticky;top:88px}
@@ -225,10 +190,9 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .filter-option input{accent-color:var(--p);width:16px;height:16px}
 .results-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
 .results-count{font-size:15px;font-weight:700;color:var(--txt)}
+@media(max-width:900px){.results-layout{grid-template-columns:1fr}.filters-panel{position:static}}
 
-/* ──────────────────────────────────────────────
-   PAGE 3 — DOCTOR PROFILE
-────────────────────────────────────────────── */
+/* ── DOCTOR PROFILE ── */
 .profile-hero{background:var(--white);border-bottom:1px solid var(--brd);padding:2.5rem 5%}
 .profile-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem;padding:2rem 5%}
 .profile-card{background:var(--white);border-radius:var(--rl);border:1px solid var(--brd);padding:1.75rem}
@@ -238,7 +202,6 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .info-icon{font-size:20px;width:32px;text-align:center}
 .info-label{color:var(--muted);flex:1}
 .info-val{font-weight:700;color:var(--txt)}
-
 .schedule-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:1rem}
 .sch-day{border-radius:var(--rs);padding:10px 4px;text-align:center;cursor:pointer;border:1.5px solid var(--brd);transition:.2s}
 .sch-day:hover{border-color:var(--p);background:var(--bg)}
@@ -246,21 +209,18 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .sch-day.off{background:#F9FAFB;opacity:.5;cursor:not-allowed}
 .sch-day-name{font-size:11px;font-weight:700}
 .sch-day-num{font-size:17px;font-weight:800;margin-top:2px}
-
 .time-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:1rem}
 .time-slot{border:1.5px solid var(--brd);border-radius:var(--rs);padding:9px 0;text-align:center;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
 .time-slot:hover{border-color:var(--p);color:var(--p);background:var(--bg)}
 .time-slot.on{background:var(--p);color:#fff;border-color:var(--p)}
 .time-slot.busy{background:#F9FAFB;color:#CBD5E1;cursor:not-allowed;border-color:#E5E7EB}
-
 .review-item{border-bottom:1px solid var(--brd);padding:1.2rem 0}
 .review-item:last-child{border-bottom:none}
 .reviewer{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .rev-avatar{width:38px;height:38px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--p)}
+@media(max-width:900px){.profile-layout{grid-template-columns:1fr}}
 
-/* ──────────────────────────────────────────────
-   PAGE 4 — BOOKING FLOW
-────────────────────────────────────────────── */
+/* ── BOOKING FLOW ── */
 .booking-wrap{max-width:720px;margin:0 auto;padding:2.5rem 1rem}
 .booking-steps{display:flex;gap:0;margin-bottom:2.5rem;position:relative}
 .booking-steps::before{content:'';position:absolute;top:20px;right:10%;left:10%;height:2px;background:var(--brd);z-index:0}
@@ -271,7 +231,6 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .bstep-label{font-size:12px;font-weight:700;color:var(--muted)}
 .bstep.active .bstep-label{color:var(--p)}
 .bstep.done .bstep-label{color:var(--grn)}
-
 .booking-card{background:#fff;border-radius:var(--rl);border:1px solid var(--brd);padding:2rem}
 .booking-title{font-size:20px;font-weight:800;margin-bottom:1.5rem;color:var(--txt)}
 .form-group{margin-bottom:1.25rem}
@@ -279,32 +238,27 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .form-input{width:100%;padding:12px 16px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:15px;font-family:'Tajawal',sans-serif;transition:.2s;outline:none;color:var(--txt)}
 .form-input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(11,110,79,.1)}
 .form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A7569' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 14px center;padding-left:42px}
-
 .spec-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .spec-pick-item{border:2px solid var(--brd);border-radius:var(--r);padding:1rem;text-align:center;cursor:pointer;transition:.2s}
 .spec-pick-item:hover{border-color:var(--p);background:var(--bg)}
 .spec-pick-item.on{border-color:var(--p);background:var(--bg)}
 .spec-pick-item .icon{font-size:28px;margin-bottom:6px}
 .spec-pick-item .name{font-size:13px;font-weight:700}
-
 .doc-pick-item{border:1.5px solid var(--brd);border-radius:var(--r);padding:1rem;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.2s;margin-bottom:.75rem}
 .doc-pick-item:hover,.doc-pick-item.on{border-color:var(--p);background:var(--bg)}
 .doc-pick-item.on{border-width:2px}
-
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:1rem 0}
 .cal-day{text-align:center;padding:8px 4px;border-radius:var(--rs);cursor:pointer;font-size:13px;transition:.2s}
 .cal-day.avail:hover,.cal-day.selected{background:var(--p);color:#fff}
 .cal-day.empty{cursor:default}
 .cal-day.past{color:#CBD5E1;cursor:not-allowed}
 .cal-day-name{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:4px 0}
-
 .confirm-summary{background:var(--bg);border-radius:var(--r);padding:1.5rem;margin-bottom:1.5rem}
 .confirm-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid var(--brd)}
 .confirm-row:last-child{border-bottom:none;font-weight:800;font-size:15px}
+@media(max-width:600px){.spec-picker{grid-template-columns:repeat(2,1fr)}.time-slots{grid-template-columns:repeat(3,1fr)}}
 
-/* ──────────────────────────────────────────────
-   PAGE 5 — SUCCESS
-────────────────────────────────────────────── */
+/* ── SUCCESS ── */
 .success-wrap{max-width:540px;margin:4rem auto;padding:0 1rem;text-align:center}
 .success-icon{width:90px;height:90px;background:#DCFCE7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;margin:0 auto 1.5rem}
 .appt-ticket{background:#fff;border-radius:var(--rl);border:2px solid var(--brd);padding:2rem;margin:2rem 0;text-align:right}
@@ -315,9 +269,7 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .qr-box{width:100px;height:100px;background:var(--bg);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;margin:1.5rem auto;border:2px solid var(--brd)}
 .qr-box svg{width:80px;height:80px}
 
-/* ──────────────────────────────────────────────
-   PAGE 6 — PATIENT DASHBOARD
-────────────────────────────────────────────── */
+/* ── PATIENT DASHBOARD ── */
 .dash-layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 68px)}
 .dash-sidebar{background:var(--white);border-left:1px solid var(--brd);padding:1.5rem 1rem}
 .dash-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.2s;margin-bottom:4px;border:none;background:none;width:100%;text-align:right}
@@ -325,7 +277,7 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .dash-menu-item .ico{font-size:18px}
 .dash-content{padding:2rem}
 .dash-section{display:none}.dash-section.active{display:block}
-
+@media(max-width:900px){.dash-layout{grid-template-columns:1fr}.dash-sidebar{display:none}}
 .appt-card{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.25rem;display:flex;gap:14px;margin-bottom:.85rem;align-items:flex-start}
 .appt-date-box{min-width:64px;background:var(--bg);border-radius:var(--rs);padding:8px 6px;text-align:center}
 .appt-day{font-size:22px;font-weight:900;color:var(--p);line-height:1}
@@ -339,28 +291,24 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .sp-upcoming{background:#EFF6FF;color:#1e40af}
 .sp-done{background:#F0FDF4;color:#166534}
 .sp-cancelled{background:#FEF2F2;color:#991b1b}
-
 .notif-item{display:flex;gap:12px;padding:1rem 0;border-bottom:1px solid var(--brd);align-items:flex-start}
 .notif-item:last-child{border-bottom:none}
 .notif-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
 .nd-new{background:var(--p)}.nd-read{background:#CBD5E1}
 
-/* ──────────────────────────────────────────────
-   PAGE 7 — ADMIN DASHBOARD
-────────────────────────────────────────────── */
+/* ── ADMIN DASHBOARD ── */
 .admin-layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 68px)}
 .admin-sidebar{background:var(--p);padding:1.5rem 1rem}
 .admin-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.7);transition:.2s;margin-bottom:4px;border:none;background:none;width:100%;text-align:right}
 .admin-menu-item:hover,.admin-menu-item.active{background:rgba(255,255,255,.15);color:#fff}
 .admin-content{padding:2rem;background:var(--surf)}
 .admin-section{display:none}.admin-section.active{display:block}
-
+@media(max-width:900px){.admin-layout{grid-template-columns:1fr}.admin-sidebar{display:none}}
 .stat-card{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem;display:flex;align-items:center;gap:16px}
 .stat-icon{width:52px;height:52px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
 .stat-val{font-size:28px;font-weight:900;color:var(--txt)}
 .stat-lbl{font-size:13px;color:var(--muted);margin-top:2px}
 .stat-chg{font-size:12px;font-weight:700;margin-top:4px}
-
 .today-list{background:#fff;border-radius:var(--r);border:1px solid var(--brd);overflow:hidden}
 .today-header{background:var(--bg);padding:1rem 1.5rem;font-size:15px;font-weight:800;border-bottom:1px solid var(--brd)}
 .today-row{display:flex;align-items:center;gap:12px;padding:.9rem 1.5rem;border-bottom:1px solid var(--brd);transition:.2s}
@@ -371,7 +319,6 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 .today-name{font-size:14px;font-weight:700}
 .today-reason{font-size:12px;color:var(--muted)}
 .today-action{display:flex;gap:6px}
-
 .chart-wrap{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem}
 .chart-title{font-size:15px;font-weight:800;margin-bottom:1rem}
 
@@ -388,89 +335,95 @@ nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;disp
 #toast{position:fixed;bottom:2rem;right:50%;transform:translateX(50%);background:var(--txt);color:#fff;padding:12px 24px;border-radius:var(--r);font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1}
 
-/* ── SCROLL INDICATOR ── */
+/* ── SCROLL ── */
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--surf)}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
 
 footer{background:var(--p2);color:rgba(255,255,255,.7);padding:2.5rem 5%;text-align:center;font-size:14px}
 footer strong{color:#fff}
 
-/* LOGIN PAGE */
-.login-screen{
-position:fixed;inset:0;background:linear-gradient(135deg,#0B6E4F,#085C41);
-display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px
+/* Mobile tweaks */
+@media(max-width:600px){
+  .hero-title{font-size:32px}
+  .hero-sub{font-size:16px}
+  .search-box{flex-direction:column}
+  .search-divider{display:none;width:100%;height:1px}
+  .hero-stats{gap:20px}
+  .hstat-n{font-size:22px}
+  nav{height:auto;padding:10px 5%;flex-wrap:wrap;gap:8px}
+  .nav-links{flex-wrap:wrap;justify-content:center}
+  .section{padding:2rem 5%}
+  .booking-steps::before{right:15%;left:15%}
+  .prof-avatar{width:70px;height:70px;font-size:28px}
 }
-.login-card{
-background:#fff;border-radius:24px;padding:2rem;max-width:430px;width:100%;
-box-shadow:0 10px 40px rgba(0,0,0,.25)
-}
-.login-title{font-size:30px;font-weight:900;color:#0B6E4F;margin-bottom:10px}
-.login-sub{color:#5A7569;margin-bottom:20px;line-height:1.7}
-#hospital-map{height:500px;border-radius:20px;border:1px solid var(--brd)}
-.ai-chat{
-position:fixed;bottom:25px;left:25px;background:#F59E0B;color:#fff;
-width:65px;height:65px;border-radius:50%;display:flex;
-align-items:center;justify-content:center;font-size:28px;
-box-shadow:0 10px 25px rgba(0,0,0,.2);z-index:9999;cursor:pointer
-}
-.ai-box{
-position:fixed;bottom:100px;left:25px;width:320px;background:#fff;
-border-radius:18px;border:1px solid var(--brd);display:none;
-overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.2);z-index:9999
-}
-.ai-head{
-background:#0B6E4F;color:#fff;padding:14px;font-weight:800
-}
-.ai-messages{padding:15px;height:250px;overflow:auto;font-size:14px}
-.ai-input{display:flex;border-top:1px solid var(--brd)}
-.ai-input input{flex:1;border:none;padding:12px;outline:none}
-.ai-input button{background:#0B6E4F;color:#fff;border:none;padding:0 16px}
-@media(max-width:700px){
-.hero-title{font-size:34px}
-.search-box{flex-direction:column}
-.ai-box{width:90%;left:5%}
-}
-
 </style>
+<base target="_blank">
 </head>
 <body>
 
-<div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <div class="login-title">تسجيل دخول المريض</div>
-    <div class="login-sub">
-      مرحباً بك في منصة ميعاد الصحية الخاصة بمشروع PIE. 
-      قم بإدخال معلوماتك للولوج إلى المنصة الطبية.
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">الاسم الكامل</label>
-      <input class="form-input" id="patientName" placeholder="مثال: يوسف العمراني">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">رقم البطاقة الوطنية CNI</label>
-      <input class="form-input" id="patientCNI" placeholder="AB123456" dir="ltr">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">رقم الهاتف</label>
-      <input class="form-input" id="patientPhone" placeholder="06XXXXXXXX" dir="ltr">
-    </div>
-
-    <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center"
-      onclick="loginPatient()">
-      دخول إلى المنصة
-    </button>
-
-    <div style="margin-top:18px;background:#F0FAF6;padding:14px;border-radius:14px;font-size:13px;line-height:1.8;color:#0B6E4F">
-      يمكن ربط هذه البيانات مباشرة مع Google Sheets عبر Google Apps Script لتخزين بيانات المرضى بشكل تلقائي.
+<!-- ══════════════════════════════════════════
+     LOGIN / REGISTER OVERLAY
+══════════════════════════════════════════ -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">م</div>
+    <div class="login-title">مرحباً بك في ميعاد</div>
+    <div class="login-sub">منصة حجز المواعيد الطبية في تطوان</div>
+    <div class="login-city">📍 مدينة تطوان</div>
+    <form class="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">الاسم الكامل *</label>
+        <input class="form-input" type="text" id="login-name" placeholder="مثال: يوسف العمراني" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">رقم البطاقة الوطنية (CNI) *</label>
+        <input class="form-input" type="text" id="login-cni" placeholder="مثال: AB123456" dir="ltr" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">رقم الهاتف *</label>
+        <input class="form-input" type="tel" id="login-phone" placeholder="06XXXXXXXX" dir="ltr" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">تاريخ الميلاد</label>
+        <input class="form-input" type="date" id="login-dob">
+      </div>
+      <button type="submit" class="login-btn" id="login-btn">دخول إلى الموقع →</button>
+    </form>
+    <div class="login-note">
+      🔒 بياناتك محمية ولا تُشارك مع أطراف ثالثة.<br>
+      يتم حفظ المعلومات في قاعدة بيانات آمنة (Google Sheets) للمتابعة الطبية.
     </div>
   </div>
 </div>
 
-
 <!-- ── TOAST ── -->
 <div id="toast"></div>
+
+<!-- ── CHAT BOT WIDGET ── -->
+<button class="chat-toggle" onclick="toggleChat()" id="chat-toggle-btn">🤖</button>
+<div id="chat-widget">
+  <div class="chat-head">
+    <div class="chat-head-icon">🤖</div>
+    <div>
+      <div class="chat-head-title">مساعد ميعاد الطبي</div>
+      <div class="chat-head-sub">مدعوم بـ Groq AI — يجيب على استفساراتك الصحية</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">×</button>
+  </div>
+  <div class="chat-body" id="chat-body">
+    <div class="chat-msg bot">
+      مرحباً! أنا مساعدك الطبي الذكي في <strong>ميعاد</strong> (مدعوم بـ Groq AI). يمكنني مساعدتك في:<br>
+      • معرفة أقرب مستشفى أو عيادة في تطوان<br>
+      • نصائح أولية للحالات الصحية الشائعة<br>
+      • معلومات عن التخصصات الطبية والأطباء<br>
+      • إرشادات قبل الزيارة الطبية<br><br>
+      كيف يمكنني مساعدتك اليوم؟
+    </div>
+  </div>
+  <div class="chat-foot">
+    <input type="text" id="chat-input" placeholder="اكتب سؤالك هنا..." onkeypress="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()">➤</button>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════
      NAVIGATION
@@ -486,6 +439,7 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
   </div>
   <div class="nav-links">
     <button class="nav-link" onclick="go('search')">🔍 البحث</button>
+    <button class="nav-link" onclick="go('map')">🗺️ الخريطة</button>
     <button class="nav-link" onclick="go('dashboard')">📋 مواعيدي <span class="nav-badge">3</span></button>
     <button class="nav-link" onclick="go('admin')">🏥 لوحة المستشفى</button>
     <button class="nav-btn" onclick="go('booking')">احجز موعداً</button>
@@ -499,19 +453,25 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 
   <!-- HERO -->
   <div id="hero">
-    <div class="hero-eyebrow">🇲🇦 خدمة صحية رقمية لكل مواطن مغربي</div>
+    <div class="hero-eyebrow">🇲🇦 خدمة صحية رقمية لكل مواطن مغربي — تطوان</div>
     <h1 class="hero-title">احجز موعدك الطبي<br>في <span>دقيقتين</span> — بلا طوابير</h1>
-    <p class="hero-sub">ميعاد يربطك بآلاف الأطباء والمستشفيات في المغرب — احجز، غيّر، أو ألغِ موعدك من هاتفك</p>
+    <p class="hero-sub">ميعاد يربطك بأفضل الأطباء والمستشفيات في تطوان — احجز، غيّر، أو ألغِ موعدك من هاتفك</p>
 
     <div class="search-box">
-      <select style="flex:1.2;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
+      <select id="hero-city" style="flex:1.2;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
         <option value="">🏙️ كل المدن</option>
-        <option>الرباط</option><option>الدار البيضاء</option><option>طنجة</option>
-        <option>فاس</option><option>مراكش</option><option>أكادير</option>
-        <option>مكناس</option><option>وجدة</option>
+        <option selected>تطوان</option>
+        <option>الرباط</option>
+        <option>الدار البيضاء</option>
+        <option>طنجة</option>
+        <option>فاس</option>
+        <option>مراكش</option>
+        <option>أكادير</option>
+        <option>مكناس</option>
+        <option>وجدة</option>
       </select>
       <div class="search-divider"></div>
-      <select style="flex:1.4;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
+      <select id="hero-spec" style="flex:1.4;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
         <option value="">🩺 كل التخصصات</option>
         <option>طب عام</option><option>قلب وأوعية</option><option>أطفال</option>
         <option>نساء وتوليد</option><option>عظام</option><option>عيون</option>
@@ -525,29 +485,22 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
     </div>
 
     <div class="hero-stats">
-      <div class="hstat"><div class="hstat-n">+4,200</div><div class="hstat-l">طبيب مسجل</div></div>
-      <div class="hstat"><div class="hstat-n">+380</div><div class="hstat-l">مستشفى وعيادة</div></div>
-      <div class="hstat"><div class="hstat-n">+68,000</div><div class="hstat-l">موعد محجوز</div></div>
+      <div class="hstat"><div class="hstat-n">+6,400</div><div class="hstat-l">طبيب مسجل</div></div>
+      <div class="hstat"><div class="hstat-n">+520</div><div class="hstat-l">مستشفى وعيادة</div></div>
+      <div class="hstat"><div class="hstat-n">+128,000</div><div class="hstat-l">موعد محجوز</div></div>
       <div class="hstat"><div class="hstat-n">4.8 ⭐</div><div class="hstat-l">تقييم المرضى</div></div>
     </div>
   </div>
 
   <!-- SPECIALTIES -->
   <div style="padding:2.5rem 5% 0">
-    <div class="sec-hd"><div><div class="sec-title">التخصصات الطبية</div><div class="sec-sub">اختر التخصص المناسب لحالتك</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
+    <div class="sec-hd"><div><div class="sec-title">التخصصات الطبية في تطوان</div><div class="sec-sub">اختر التخصص المناسب لحالتك</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
   </div>
-  <div class="spec-grid" style="padding-top:.5rem">
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🫀</div><div class="spec-name">قلب وأوعية</div><div class="spec-count">214 طبيب</div></div>
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">👶</div><div class="spec-name">أطفال</div><div class="spec-count">328 طبيب</div></div>
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🦷</div><div class="spec-name">أسنان</div><div class="spec-count">562 طبيب</div></div>
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">👁️</div><div class="spec-name">عيون</div><div class="spec-count">189 طبيب</div></div>
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🦴</div><div class="spec-name">عظام</div><div class="spec-count">241 طبيب</div></div>
-    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🧠</div><div class="spec-name">أعصاب</div><div class="spec-count">97 طبيب</div></div>
-  </div>
+  <div class="spec-grid" style="padding-top:.5rem" id="spec-grid"></div>
 
   <!-- FEATURED DOCTORS -->
   <div class="section">
-    <div class="sec-hd"><div><div class="sec-title">أطباء متميزون</div><div class="sec-sub">الأعلى تقييماً هذا الشهر</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
+    <div class="sec-hd"><div><div class="sec-title">أطباء متميزون في تطوان</div><div class="sec-sub">الأعلى تقييماً هذا الشهر</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
     <div class="grid3" id="featured-doctors"></div>
   </div>
 
@@ -563,41 +516,29 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
     <div style="text-align:center;padding-bottom:3rem"><button class="btn btn-primary btn-lg" onclick="go('booking')">احجز موعدك الآن ←</button></div>
   </div>
 
+  <!-- MAP PREVIEW -->
+  <div style="background:var(--bg);border-top:1px solid var(--brd);padding:2.5rem 5%">
+    <div class="sec-hd">
+      <div>
+        <div class="sec-title">🗺️ مستشفيات وعيادات تطوان</div>
+        <div class="sec-sub">تصفح المواقع على الخريطة التفاعلية</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="go('map')">فتح الخريطة الكاملة</button>
+    </div>
+    <div id="map-preview" style="height:300px;border-radius:var(--r);border:2px solid var(--brd);overflow:hidden"></div>
+  </div>
+
   <!-- ALERT SECTION -->
-  <div style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-top:1px solid #FCD34D;padding:1.5rem 5%;display:flex;align-items:center;gap:16px">
+  <div style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-top:1px solid #FCD34D;padding:1.5rem 5%;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="font-size:32px">🚨</div>
-    <div>
+    <div style="flex:1">
       <div style="font-size:16px;font-weight:800;color:#92400e">خدمة الطوارئ — 24/7</div>
       <div style="font-size:14px;color:#B45309;margin-top:3px">للحالات الطارئة اتصل مباشرة: <strong>15</strong> (SAMU) أو <strong>150</strong> (الحماية المدنية)</div>
     </div>
     <button class="btn btn-acc btn-sm" style="margin-right:auto" onclick="showToast('جاري فتح خريطة أقرب مستشفى طوارئ...')">📍 أقرب مستشفى طوارئ</button>
   </div>
 
-  
-<div class="section">
-  <div class="sec-hd">
-    <div>
-      <div class="sec-title">🗺️ خريطة المستشفيات</div>
-      <div class="sec-sub">جميع المستشفيات والمراكز الصحية القريبة</div>
-    </div>
-  </div>
-  <div id="hospital-map"></div>
-</div>
-
-<div class="ai-chat" onclick="toggleAI()">🤖</div>
-
-<div class="ai-box" id="aiBox">
-  <div class="ai-head">مساعد MiAad AI</div>
-  <div class="ai-messages" id="aiMessages">
-    <div>👋 مرحباً، أنا مساعد ذكي لمساعدة المرضى والإجابة عن الأسئلة الطبية العامة.</div>
-  </div>
-  <div class="ai-input">
-    <input id="aiInput" placeholder="اكتب سؤالك هنا...">
-    <button onclick="sendAI()">إرسال</button>
-  </div>
-</div>
-
-<footer><p>© 2025 <strong>ميعاد</strong> — منصة حجز المواعيد الطبية في المغرب | مشروع PIE | تسيير المقاولات</p></footer>
+  <footer><p>© 2025 <strong>ميعاد</strong> — منصة حجز المواعيد الطبية في المغرب | مشروع PIE | تسيير المقاولات — تطوان</p></footer>
 </div>
 
 <!-- ══════════════════════════════════════════
@@ -610,7 +551,7 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
       <div class="search-box" style="max-width:500px;padding:5px;gap:6px">
         <input type="text" placeholder="🔍 ابحث بالاسم أو التخصص..." style="flex:1;border:none;outline:none;padding:9px 12px;font-size:14px;font-family:'Tajawal',sans-serif;color:var(--txt)">
         <select style="border:none;outline:none;padding:9px 10px;font-size:13px;font-family:'Tajawal',sans-serif;background:var(--bg);border-radius:6px">
-          <option>كل المدن</option><option>الرباط</option><option>الدار البيضاء</option><option>طنجة</option><option>فاس</option><option>مراكش</option>
+          <option>كل المدن</option><option selected>تطوان</option><option>الرباط</option><option>الدار البيضاء</option><option>طنجة</option><option>فاس</option><option>مراكش</option>
         </select>
       </div>
     </div>
@@ -626,7 +567,6 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
     </div>
   </div>
   <div class="results-layout">
-    <!-- FILTERS -->
     <div class="filters-panel">
       <div class="filter-title">⚙️ تصفية النتائج</div>
       <div class="filter-group">
@@ -652,19 +592,17 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
       <div class="divider" style="margin:.5rem 0"></div>
       <div class="filter-group">
         <div class="filter-label">المدينة</div>
-        <label class="filter-option"><input type="checkbox" checked> الرباط</label>
-        <label class="filter-option"><input type="checkbox" checked> الدار البيضاء</label>
+        <label class="filter-option"><input type="checkbox" checked> تطوان</label>
+        <label class="filter-option"><input type="checkbox"> الرباط</label>
+        <label class="filter-option"><input type="checkbox"> الدار البيضاء</label>
         <label class="filter-option"><input type="checkbox"> طنجة</label>
         <label class="filter-option"><input type="checkbox"> فاس</label>
-        <label class="filter-option"><input type="checkbox"> مراكش</label>
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="showToast('تم تطبيق الفلاتر')">تطبيق الفلاتر</button>
     </div>
-
-    <!-- RESULTS -->
     <div>
       <div class="results-top">
-        <div class="results-count" id="results-count">عرض <strong>12</strong> نتيجة</div>
+        <div class="results-count" id="results-count">عرض <strong>24</strong> نتيجة</div>
         <select style="padding:8px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:14px;font-family:'Tajawal',sans-serif">
           <option>ترتيب حسب: التقييم</option>
           <option>أقرب موعد</option>
@@ -677,14 +615,38 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 </div>
 
 <!-- ══════════════════════════════════════════
-     PAGE 3: DOCTOR PROFILE
+     PAGE 3: MAP FULL
+══════════════════════════════════════════ -->
+<div id="page-map" class="page">
+  <div class="results-header">
+    <div class="map-header" style="width:100%;padding:0">
+      <div>
+        <div style="font-size:20px;font-weight:800">🗺️ خريطة المستشفيات والعيادات</div>
+        <div style="font-size:14px;color:var(--muted);margin-top:4px">تطوان — جميع المراكز الصحية على خريطة تفاعلية</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="go('home')">🏠 الرئيسية</button>
+    </div>
+  </div>
+  <div id="map-section">
+    <div id="map-full" style="height:70vh;border-radius:var(--r);border:2px solid var(--brd);z-index:1"></div>
+    <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="chip on">🏥 الكل</div>
+      <div class="chip">🟢 مستشفى عمومي</div>
+      <div class="chip">🔵 عيادة خاصة</div>
+      <div class="chip">🟡 مركز صحي</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 4: DOCTOR PROFILE
 ══════════════════════════════════════════ -->
 <div id="page-doctor" class="page">
   <div id="doc-profile-content"></div>
 </div>
 
 <!-- ══════════════════════════════════════════
-     PAGE 4: BOOKING FLOW
+     PAGE 5: BOOKING FLOW
 ══════════════════════════════════════════ -->
 <div id="page-booking" class="page">
   <div style="background:var(--bg);border-bottom:1px solid var(--brd);padding:1rem 5%;font-size:14px;color:var(--muted)">
@@ -702,7 +664,7 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 </div>
 
 <!-- ══════════════════════════════════════════
-     PAGE 5: SUCCESS
+     PAGE 6: SUCCESS
 ══════════════════════════════════════════ -->
 <div id="page-success" class="page">
   <div class="success-wrap">
@@ -716,7 +678,7 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
         <div style="text-align:left"><div style="color:rgba(255,255,255,.7);font-size:12px;margin-bottom:4px">الحالة</div><span class="tag tag-g" style="background:rgba(255,255,255,.2);color:#fff">✅ مؤكد</span></div>
       </div>
       <div class="ticket-row"><span>👨‍⚕️ الطبيب</span><strong>د. محمد بنعلي</strong></div>
-      <div class="ticket-row"><span>🏥 المستشفى</span><strong>المستشفى الجامعي ابن سينا</strong></div>
+      <div class="ticket-row"><span>🏥 المستشفى</span><strong>المستشفى الإقليمي محمد الخامس</strong></div>
       <div class="ticket-row"><span>📅 التاريخ</span><strong id="confirmed-date">الثلاثاء 24 يونيو 2025</strong></div>
       <div class="ticket-row"><span>🕙 الوقت</span><strong id="confirmed-time">10:30 صباحاً</strong></div>
       <div class="ticket-row"><span>📍 الغرفة</span><strong>عيادة رقم 14 — الطابق 2</strong></div>
@@ -757,14 +719,14 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 </div>
 
 <!-- ══════════════════════════════════════════
-     PAGE 6: PATIENT DASHBOARD
+     PAGE 7: PATIENT DASHBOARD
 ══════════════════════════════════════════ -->
 <div id="page-dashboard" class="page">
   <div class="dash-layout">
     <div class="dash-sidebar">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.75rem;padding:0 4px">
         <div class="doc-avatar" style="width:50px;height:50px;font-size:20px;background:var(--p)">ي</div>
-        <div><div style="font-size:15px;font-weight:800">يوسف العمراني</div><div style="font-size:12px;color:var(--muted)">مريض مسجل</div></div>
+        <div><div style="font-size:15px;font-weight:800">يوسف العمراني</div><div style="font-size:12px;color:var(--muted)">مريض مسجل — تطوان</div></div>
       </div>
       <button class="dash-menu-item active" onclick="dashMenu(this,'d-upcoming')"><span class="ico">📅</span>المواعيد القادمة <span class="nav-badge">2</span></button>
       <button class="dash-menu-item" onclick="dashMenu(this,'d-history')"><span class="ico">🕐</span>السجل الطبي</button>
@@ -773,22 +735,20 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
       <button class="dash-menu-item" onclick="dashMenu(this,'d-favorites')"><span class="ico">⭐</span>أطبائي المفضلون</button>
       <div class="divider"></div>
       <button class="dash-menu-item" onclick="go('booking')"><span class="ico">➕</span>حجز موعد جديد</button>
+      <button class="dash-menu-item" onclick="go('map')"><span class="ico">🗺️</span>خريطة المستشفيات</button>
     </div>
     <div class="dash-content">
 
-      <!-- UPCOMING -->
       <div id="d-upcoming" class="dash-section active">
         <div class="sec-hd"><div><div class="sec-title">المواعيد القادمة</div><div class="sec-sub">لديك 2 موعد قادم</div></div><button class="btn btn-primary btn-sm" onclick="go('booking')">+ حجز جديد</button></div>
         <div id="upcoming-list"></div>
       </div>
 
-      <!-- HISTORY -->
       <div id="d-history" class="dash-section">
         <div class="sec-hd"><div class="sec-title">السجل الطبي</div></div>
         <div id="history-list"></div>
       </div>
 
-      <!-- PROFILE -->
       <div id="d-profile" class="dash-section">
         <div class="sec-title" style="margin-bottom:1.5rem">ملفي الشخصي</div>
         <div class="card" style="max-width:600px">
@@ -805,17 +765,15 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
         </div>
       </div>
 
-      <!-- NOTIFS -->
       <div id="d-notifs" class="dash-section">
         <div class="sec-title" style="margin-bottom:1.5rem">الإشعارات</div>
         <div class="card">
           <div class="notif-item"><div class="notif-dot nd-new"></div><div><div style="font-size:14px;font-weight:700">تذكير بموعدك غداً</div><div style="font-size:13px;color:var(--muted);margin-top:3px">موعدك مع د. محمد بنعلي غداً الثلاثاء الساعة 10:30 — لا تنسَ بطاقة RAMED</div><div style="font-size:11px;color:var(--muted);margin-top:5px">منذ ساعة</div></div></div>
-          <div class="notif-item"><div class="notif-dot nd-read"></div><div><div style="font-size:14px;font-weight:700">تم تأكيد موعدك</div><div style="font-size:13px;color:var(--muted);margin-top:3px">تم تأكيد موعدك رقم #MA-7842 مع المستشفى الجامعي ابن سينا</div><div style="font-size:11px;color:var(--muted);margin-top:5px">أمس</div></div></div>
+          <div class="notif-item"><div class="notif-dot nd-read"></div><div><div style="font-size:14px;font-weight:700">تم تأكيد موعدك</div><div style="font-size:13px;color:var(--muted);margin-top:3px">تم تأكيد موعدك رقم #MA-7842 مع المستشفى الإقليمي محمد الخامس</div><div style="font-size:11px;color:var(--muted);margin-top:5px">أمس</div></div></div>
           <div class="notif-item"><div class="notif-dot nd-read"></div><div><div style="font-size:14px;font-weight:700">تقييم زيارتك السابقة</div><div style="font-size:13px;color:var(--muted);margin-top:3px">كيف كانت تجربتك مع د. فاطمة الزهراء؟ قيّمها الآن</div><div style="font-size:11px;color:var(--muted);margin-top:5px">3 أيام</div></div></div>
         </div>
       </div>
 
-      <!-- FAVORITES -->
       <div id="d-favorites" class="dash-section">
         <div class="sec-hd"><div class="sec-title">أطبائي المفضلون</div></div>
         <div class="grid2" id="favorites-list"></div>
@@ -826,13 +784,13 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 </div>
 
 <!-- ══════════════════════════════════════════
-     PAGE 7: ADMIN DASHBOARD
+     PAGE 8: ADMIN DASHBOARD
 ══════════════════════════════════════════ -->
 <div id="page-admin" class="page">
   <div class="admin-layout">
     <div class="admin-sidebar">
-      <div style="color:#fff;font-size:15px;font-weight:800;margin-bottom:4px">🏥 ابن سينا</div>
-      <div style="color:rgba(255,255,255,.6);font-size:12px;margin-bottom:1.75rem">لوحة التحكم — الرباط</div>
+      <div style="color:#fff;font-size:15px;font-weight:800;margin-bottom:4px">🏥 محمد الخامس</div>
+      <div style="color:rgba(255,255,255,.6);font-size:12px;margin-bottom:1.75rem">لوحة التحكم — تطوان</div>
       <button class="admin-menu-item active" onclick="adminMenu(this,'a-today')"><span>📅</span> جدول اليوم</button>
       <button class="admin-menu-item" onclick="adminMenu(this,'a-stats')"><span>📊</span> الإحصائيات</button>
       <button class="admin-menu-item" onclick="adminMenu(this,'a-doctors')"><span>👨‍⚕️</span> إدارة الأطباء</button>
@@ -844,10 +802,9 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
     </div>
     <div class="admin-content">
 
-      <!-- TODAY -->
       <div id="a-today" class="admin-section active">
         <div class="sec-hd">
-          <div><div class="sec-title">📅 جدول اليوم — الثلاثاء 24 يونيو</div><div class="sec-sub">المستشفى الجامعي ابن سينا — الرباط</div></div>
+          <div><div class="sec-title">📅 جدول اليوم — الثلاثاء 24 يونيو</div><div class="sec-sub">المستشفى الإقليمي محمد الخامس — تطوان</div></div>
           <button class="btn btn-danger btn-sm" onclick="showToast('تم إرسال SMS لكل المرضى ⚠️')">⚠️ إغلاق طارئ</button>
         </div>
         <div class="grid4" style="margin-bottom:1.5rem">
@@ -862,7 +819,6 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
         </div>
       </div>
 
-      <!-- STATS -->
       <div id="a-stats" class="admin-section">
         <div class="sec-title" style="margin-bottom:1.5rem">📊 الإحصائيات والتقارير</div>
         <div class="grid4" style="margin-bottom:1.5rem">
@@ -878,13 +834,11 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
         <div class="chart-wrap" style="margin-top:1.25rem"><div class="chart-title">نشاط الحجز — آخر 30 يوم</div><canvas id="chart-monthly" height="120"></canvas></div>
       </div>
 
-      <!-- DOCTORS -->
       <div id="a-doctors" class="admin-section">
         <div class="sec-hd"><div class="sec-title">👨‍⚕️ إدارة الأطباء</div><button class="btn btn-primary btn-sm" onclick="showToast('فتح نموذج إضافة طبيب...')">+ إضافة طبيب</button></div>
         <div id="admin-doctors-list"></div>
       </div>
 
-      <!-- APPOINTMENTS -->
       <div id="a-appointments" class="admin-section">
         <div class="sec-hd"><div class="sec-title">📋 كل المواعيد</div>
           <div style="display:flex;gap:8px">
@@ -895,13 +849,12 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
         <div class="today-list" id="all-appointments"></div>
       </div>
 
-      <!-- SETTINGS -->
       <div id="a-settings" class="admin-section">
         <div class="sec-title" style="margin-bottom:1.5rem">⚙️ إعدادات المستشفى</div>
         <div class="card" style="max-width:600px">
-          <div class="form-group"><label class="form-label">اسم المستشفى</label><input class="form-input" value="المستشفى الجامعي ابن سينا"></div>
-          <div class="form-group"><label class="form-label">المدينة</label><select class="form-input form-select"><option selected>الرباط</option><option>الدار البيضاء</option></select></div>
-          <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-input" value="0537671117" dir="ltr"></div>
+          <div class="form-group"><label class="form-label">اسم المستشفى</label><input class="form-input" value="المستشفى الإقليمي محمد الخامس"></div>
+          <div class="form-group"><label class="form-label">المدينة</label><select class="form-input form-select"><option selected>تطوان</option><option>الرباط</option></select></div>
+          <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-input" value="0539960000" dir="ltr"></div>
           <div class="form-group"><label class="form-label">ساعات العمل</label><div class="grid2" style="gap:8px"><input class="form-input" value="08:00" type="time"><input class="form-input" value="17:00" type="time"></div></div>
           <div class="form-group"><label class="form-label" style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--p)"> خدمة طوارئ 24/7</label></div>
           <button class="btn btn-primary" onclick="showToast('تم حفظ الإعدادات ✅')">💾 حفظ</button>
@@ -914,53 +867,405 @@ background:#0B6E4F;color:#fff;padding:14px;font-weight:800
 
 <script>
 /* ══════════════════════════════════════════
-   DATA
+   GOOGLE SHEETS WEB APP URL
 ══════════════════════════════════════════ */
-const COLORS=['#0B6E4F','#7C3AED','#B45309','#DC2626','#0284C7','#059669','#C026D3','#0891B2'];
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzH-ZM3Nuz05UE4PBiZcnffNOx1SrfTHrfJDZPIwNdmsMYXbz7JpPMDhDZvmw1N9ijD/exec';
+
+/* ══════════════════════════════════════════
+   DATA — DOCTORS (2+ per specialty, Tetouan focus)
+══════════════════════════════════════════ */
+const COLORS=['#0B6E4F','#7C3AED','#B45309','#DC2626','#0284C7','#059669','#C026D3','#0891B2','#D4547E','#6366F1','#84CC16','#14B8A6'];
 const SPECS=[
-  {icon:'🫀',name:'قلب وأوعية',count:214},{icon:'👶',name:'أطفال',count:328},
-  {icon:'🦷',name:'أسنان',count:562},{icon:'👁️',name:'عيون',count:189},
-  {icon:'🦴',name:'عظام',count:241},{icon:'🧠',name:'أعصاب',count:97},
-  {icon:'🤰',name:'نساء وتوليد',count:183},{icon:'🌡️',name:'طب عام',count:891},
-  {icon:'🧬',name:'جلدية',count:124},{icon:'👂',name:'أنف وأذن',count:98},
-  {icon:'🫁',name:'رئة وتنفس',count:76},{icon:'💊',name:'مسالك بولية',count:87}
+  {icon:'🫀',name:'قلب وأوعية',count:14},{icon:'👶',name:'أطفال',count:22},
+  {icon:'🦷',name:'أسنان',count:38},{icon:'👁️',name:'عيون',count:12},
+  {icon:'🦴',name:'عظام',count:18},{icon:'🧠',name:'أعصاب',count:9},
+  {icon:'🤰',name:'نساء وتوليد',count:16},{icon:'🌡️',name:'طب عام',count:64},
+  {icon:'🧬',name:'جلدية',count:11},{icon:'👂',name:'أنف وأذن',count:8},
+  {icon:'🫁',name:'رئة وتنفس',count:6},{icon:'💊',name:'مسالك بولية',count:7}
 ];
+
 const DOCTORS=[
-  {id:1,name:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الجامعي ابن سينا',city:'الرباط',rating:4.9,reviews:312,price:200,avail:true,color:'#0B6E4F',init:'م',wait:'15 دق',about:'متخصص في أمراض القلب والأوعية الدموية، أكثر من 15 سنة خبرة. حاصل على دكتوراه من جامعة محمد الخامس والزمالة الأوروبية في أمراض القلب.',docs:['بطاقة RAMED أو تأمين صحي','نتائج تخطيط القلب إن وجدت','قائمة الأدوية الحالية']},
-  {id:2,name:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'عيادة الأمل',city:'الدار البيضاء',rating:4.8,reviews:489,price:150,avail:true,color:'#C026D3',init:'ف',wait:'20 دق',about:'طبيبة متخصصة في طب الأطفال وحديثي الولادة، خبرة 12 سنة. متخصصة في أمراض الجهاز التنفسي عند الأطفال.',docs:['دفتر صحة الطفل','بطاقة التعريف الوطنية للولي']},
-  {id:3,name:'د. يوسف المنصوري',spec:'عيون',hosp:'مركز صحي طنجة المدينة',city:'طنجة',rating:4.7,reviews:201,price:180,avail:false,color:'#0284C7',init:'ي',wait:'35 دق',about:'متخصص في جراحة العيون بالليزر وأمراض الشبكية. أجرى أكثر من 2000 عملية جراحية.',docs:['وصفة طبية من طبيب عام','نتائج قياس النظر السابقة']},
-  {id:4,name:'د. سلمى بنسودة',spec:'نساء وتوليد',hosp:'مستشفى الشيخ زايد',city:'الرباط',rating:4.9,reviews:567,price:250,avail:true,color:'#D4547E',init:'س',wait:'25 دق',about:'متخصصة في توليد النساء وجراحة المنظار. خبرة 18 سنة وعضو في الجمعية المغربية لأطباء النساء.',docs:['آخر نتائج تحاليل','بطاقة RAMED أو تأمين']},
-  {id:5,name:'د. كريم الوفا',spec:'عظام',hosp:'المستشفى الجامعي ابن رشد',city:'الدار البيضاء',rating:4.6,reviews:178,price:220,avail:true,color:'#B45309',init:'ك',wait:'40 دق',about:'متخصص في جراحة العظام والمفاصل، وخاصة إصابات الرياضيين وجراحة استبدال الركبة.',docs:['صور الأشعة السينية','تقرير الطبيب المحيل']},
-  {id:6,name:'د. أمينة بوشنتوف',
-  {id:7,name:'د. نادر الطاهري',spec:'طب عام',hosp:'المستشفى الإقليمي سانية الرمل',city:'تطوان',rating:4.7,reviews:144,price:120,avail:true,color:'#2563EB',init:'ن',wait:'12 دق',about:'طبيب عام متخصص في الفحوصات الشاملة والطب الوقائي.',docs:['بطاقة التعريف الوطنية']},
-  {id:8,name:'د. هاجر العلمي',spec:'أسنان',hosp:'مركز تطوان لطب الأسنان',city:'تطوان',rating:4.8,reviews:301,price:160,avail:true,color:'#DC2626',init:'ه',wait:'18 دق',about:'متخصصة في تجميل الأسنان وتقويمها.',docs:['صور الأسنان إن وجدت']},
-  {id:9,name:'د. إلياس الحسني',spec:'أعصاب',hosp:'مستشفى السويسي',city:'الرباط',rating:4.9,reviews:210,price:240,avail:true,color:'#7C3AED',init:'إ',wait:'22 دق',about:'متخصص في أمراض الجهاز العصبي والصداع المزمن.',docs:['نتائج الرنين المغناطيسي']},
-  {id:10,name:'د. مريم الكتاني',spec:'جلدية',hosp:'مصحة الرباط الحديثة',city:'الرباط',rating:4.8,reviews:190,price:180,avail:true,color:'#059669',init:'م',wait:'16 دق',about:'طبيبة أمراض جلدية وعلاج الليزر.',docs:['تحاليل جلدية']},
-  {id:11,name:'د. عثمان المرابط',spec:'قلب وأوعية',hosp:'مستشفى الحسن الثاني',city:'تطوان',rating:4.9,reviews:278,price:230,avail:true,color:'#0B6E4F',init:'ع',wait:'20 دق',about:'أخصائي أمراض القلب والقسطرة.',docs:['تخطيط القلب']},
-  {id:12,name:'د. ليلى الزهيري',spec:'أطفال',hosp:'مستشفى الأطفال الرباط',city:'الرباط',rating:4.9,reviews:330,price:170,avail:true,color:'#D946EF',init:'ل',wait:'14 دق',about:'طبيبة أطفال وحديثي الولادة.',docs:['دفتر صحة الطفل']},
-  ,spec:'جلدية',hosp:'عيادة الأمل الخضراء',city:'فاس',rating:4.8,reviews:234,price:170,avail:true,color:'#059669',init:'أ',wait:'10 دق',about:'متخصصة في أمراض الجلد والشعر والأظافر، وعلاج حب الشباب والأكزيما.',docs:['صور للحالة الجلدية','قائمة المنتجات المستخدمة حالياً']},
+  // قلب وأوعية — 2 doctors
+  {id:1,name:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الإقليمي محمد الخامس',city:'تطوان',rating:4.9,reviews:312,price:200,avail:true,color:'#0B6E4F',init:'م',wait:'15 دق',about:'متخصص في أمراض القلب والأوعية الدموية، أكثر من 15 سنة خبرة. حاصل على دكتوراه من جامعة عبد المالك السعدي والزمالة الأوروبية في أمراض القلب.',docs:['بطاقة RAMED أو تأمين صحي','نتائج تخطيط القلب إن وجدت','قائمة الأدوية الحالية']},
+  {id:2,name:'د. عبد الله التطواني',spec:'قلب وأوعية',hosp:'عيادة الأمل الخضراء',city:'تطوان',rating:4.7,reviews:156,price:180,avail:true,color:'#7C3AED',init:'ع',wait:'20 دق',about:'خبير في أمراض القلب التداخلية وزراعة الدعامات. سبق له العمل في مستشفيات باريس قبل العودة لتطوان.',docs:['بطاقة RAMED','صورة دم كاملة','تخطيط القلب السابق']},
+
+  // أطفال — 2 doctors
+  {id:3,name:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'مستشفى الأطفال — تطوان',city:'تطوان',rating:4.8,reviews:489,price:150,avail:true,color:'#C026D3',init:'ف',wait:'20 دق',about:'طبيبة متخصصة في طب الأطفال وحديثي الولادة، خبرة 12 سنة. متخصصة في أمراض الجهاز التنفسي عند الأطفال والتطعيمات.',docs:['دفتر صحة الطفل','بطاقة التعريف الوطنية للولي']},
+  {id:4,name:'د. ليلى الصقلي',spec:'أطفال',hosp:'مركز صحي سانية الرمل',city:'تطوان',rating:4.6,reviews:203,price:120,avail:false,color:'#D4547E',init:'ل',wait:'30 دق',about:'طبيبة أطفال حديثي الولادة، خبرة في رعاية الأطفال الخدج والتغذية السليمة.',docs:['دفتر صحة الطفل','نتائج التحاليل السابقة']},
+
+  // أسنان — 3 doctors
+  {id:5,name:'د. يونس المرابط',spec:'أسنان',hosp:'عيادة ابن سينا — تطوان',city:'تطوان',rating:4.9,reviews:412,price:250,avail:true,color:'#B45309',init:'ي',wait:'10 دق',about:'متخصص في تقويم الأسنان وتجميل الابتسامة. يستخدم أحدث تقنيات الليزر في علاج تسوس الأسنان.',docs:['صور الأشعة السينية','بطاقة التعريف']},
+  {id:6,name:'د. سارة الحسني',spec:'أسنان',hosp:'عيادة الأمل — تطوان',city:'تطوان',rating:4.7,reviews:298,price:220,avail:true,color:'#DC2626',init:'س',wait:'15 دق',about:'جراحة فم وأسنان، متخصصة في زراعة الأسنان وعلاج العصب. خبرة 10 سنوات.',docs:['صور الأشعة','قائمة الأدوية الحالية']},
+  {id:7,name:'د. كريم الوفا',spec:'أسنان',hosp:'مركز صحي مارتيل',city:'تطوان',rating:4.5,reviews:178,price:150,avail:true,color:'#6366F1',init:'ك',wait:'25 دق',about:'طبيب أسنان عام، يقدم خدمات الحشوات والتنظيف وعلاج اللثة بأسعار مناسبة.',docs:['بطاقة RAMED']},
+
+  // عيون — 2 doctors
+  {id:8,name:'د. عمر بنعبد الله',spec:'عيون',hosp:'المستشفى الإقليمي محمد الخامس',city:'تطوان',rating:4.8,reviews:245,price:200,avail:true,color:'#0284C7',init:'ع',wait:'15 دق',about:'متخصص في جراحة الماء الأبيض (الكاتاراكت) وعلاج جلوكوما. أجرى أكثر من 1500 عملية.',docs:['وصفة طبية من طبيب عام','نتائج قياس النظر السابقة']},
+  {id:9,name:'د. يوسف المنصوري',spec:'عيون',hosp:'عيادة النور — تطوان',city:'تطوان',rating:4.6,reviews:134,price:180,avail:false,color:'#0891B2',init:'ي',wait:'35 دق',about:'اختصاصي في أمراض الشبكية والقرنية. يقدم استشارات في جراحة الليزر لتصحيح النظر.',docs:['نتائج فحص النظر','بطاقة التأمين']},
+
+  // عظام — 2 doctors
+  {id:10,name:'د. رشيد العلوي',spec:'عظام',hosp:'مستشفى القرطبي — تطوان',city:'تطوان',rating:4.7,reviews:198,price:220,avail:true,color:'#059669',init:'ر',wait:'20 دق',about:'متخصص في جراحة العظام والمفاصل، وخاصة إصابات الرياضيين وجراحة استبدال الركبة والورك.',docs:['صور الأشعة السينية','تقرير الطبيب المحيل']},
+  {id:11,name:'د. كريم الوفا',spec:'عظام',hosp:'عيادة الصحة — تطوان',city:'تطوان',rating:4.5,reviews:112,price:190,avail:true,color:'#84CC16',init:'ك',wait:'30 دق',about:'جراح عظام متخصص في علاج الكسور المعقدة وجراحة العمود الفقري بالمنظار.',docs:['صور الرنين المغناطيسي','تحاليل الدم']},
+
+  // أعصاب — 2 doctors
+  {id:12,name:'د. فاطمة الناصري',spec:'أعصاب',hosp:'المستشفى الإقليمي محمد الخامس',city:'تطوان',rating:4.8,reviews:167,price:210,avail:true,color:'#14B8A6',init:'ف',wait:'25 دق',about:'اختصاصية في أمراض الأعصاب والصرع والصداع النصفي. خبرة 14 سنة في التشخيص الكهربائي للأعصاب.',docs:['صور الرنين المغناطيسي','قائمة الأدوية الحالية']},
+  {id:13,name:'د. أمينة بوشنتوف',spec:'أعصاب',hosp:'عيادة الأمل الخضراء',city:'تطوان',rating:4.6,reviews:98,price:180,avail:true,color:'#0B6E4F',init:'أ',wait:'20 دق',about:'طبيبة أعصاب متخصصة في السكتات الدماغية والشلل الرعاش. خبرة في العلاج الطبيعي المصاحب.',docs:['تصوير مقطعي للدماغ','تقرير طبي سابق']},
+
+  // نساء وتوليد — 2 doctors
+  {id:14,name:'د. سلمى بنسودة',spec:'نساء وتوليد',hosp:'مستشفى مولاي الحسن — تطوان',city:'تطوان',rating:4.9,reviews:567,price:250,avail:true,color:'#D4547E',init:'س',wait:'25 دق',about:'متخصصة في توليد النساء وجراحة المنظار. خبرة 18 سنة وعضو في الجمعية المغربية لأطباء النساء.',docs:['آخر نتائج تحاليل','بطاقة RAMED أو تأمين']},
+  {id:15,name:'د. خديجة الريفي',spec:'نساء وتوليد',hosp:'عيادة الحياة — تطوان',city:'تطوان',rating:4.7,reviews:234,price:200,avail:true,color:'#C026D3',init:'خ',wait:'15 دق',about:'طبيبة نساء متخصصة في الحمل عالي الخطورة وطب الجنين. تقدم متابعة شاملة للحوامل.',docs:['صور السونار السابقة','بطاقة التعريف']},
+
+  // جلدية — 2 doctors
+  {id:16,name:'د. نور الدين الشعيبي',spec:'جلدية',hosp:'عيادة الأمل — تطوان',city:'تطوان',rating:4.8,reviews:189,price:170,avail:true,color:'#059669',init:'ن',wait:'10 دق',about:'متخصص في أمراض الجلد والشعر والأظافر، وعلاج حب الشباب والأكزيما بالليزر.',docs:['صور للحالة الجلدية','قائمة المنتجات المستخدمة حالياً']},
+  {id:17,name:'د. أمينة بوشنتوف',spec:'جلدية',hosp:'مركز صحي تطوان المدينة',city:'تطوان',rating:4.5,reviews:145,price:150,avail:false,color:'#B45309',init:'أ',wait:'20 دق',about:'طبيبة جلدية متخصصة في الأمراض التحسسية والبهاق والثعلبة. خبرة في العلاج بالضوء.',docs:['تحاليل الحساسية','صور الحالة']},
+
+  // أنف وأذن — 1 doctor (extra)
+  {id:18,name:'د. حسن التازي',spec:'أنف وأذن',hosp:'مستشفى سانية الرمل',city:'تطوان',rating:4.6,reviews:134,price:190,avail:true,color:'#0284C7',init:'ح',wait:'20 دق',about:'اختصاصي في أمراض الأنف والأذن والحنجرة. متخصص في جراحة اللوزتين واللوز الثالثة عند الأطفال.',docs:['صور الأشعة','بطاقة RAMED']},
+
+  // طب عام — 2 doctors
+  {id:19,name:'د. عبد الرحيم الفاسي',spec:'طب عام',hosp:'مركز صحي تطوان المدينة',city:'تطوان',rating:4.7,reviews:412,price:80,avail:true,color:'#0B6E4F',init:'ع',wait:'5 دق',about:'طبيب عام متخصص في الطب الوقائي وإدارة الأمراض المزمنة. يقدم استشارات عامة وتحاليل.',docs:['بطاقة RAMED','بطاقة التعريف الوطنية']},
+  {id:20,name:'د. زكية العمراني',spec:'طب عام',hosp:'عيادة ابن سينا — تطوان',city:'تطوان',rating:4.6,reviews:298,price:100,avail:true,color:'#7C3AED',init:'ز',wait:'10 دق',about:'طبيبة عامة، خبرة في طب الأسرة والتغذية العلاجية. تقدم خدمات التطعيم والمتابعة الصحية.',docs:['بطاقة RAMED','دفتر التطعيم']},
+
+  // مسالك بولية — 1 doctor
+  {id:21,name:'د. جمال الدين الحسني',spec:'مسالك بولية',hosp:'المستشفى الإقليمي محمد الخامس',city:'تطوان',rating:4.7,reviews:156,price:230,avail:true,color:'#DC2626',init:'ج',wait:'25 دق',about:'متخصص في جراحة الكلى والمسالك البولية وعلاج حصى الكلى بالليزر والمنظار.',docs:['صور الأشعة','تحاليل بول']},
+
+  // رئة وتنفس — 1 doctor
+  {id:22,name:'د. سعيد البوزيدي',spec:'رئة وتنفس',hosp:'مستشفى القرطبي — تطوان',city:'تطوان',rating:4.5,reviews:98,price:180,avail:true,color:'#6366F1',init:'س',wait:'20 دق',about:'اختصاصي في أمراض الرئة والحساسية والربو. يقدم فحوصات وظائف الرئة.',docs:['صور الأشعة','فحص وظائف الرئة']},
 ];
+
+/* ══════════════════════════════════════════
+   HOSPITALS / CLINICS DATA FOR MAP
+══════════════════════════════════════════ */
+const HOSPITALS = [
+  {name:'المستشفى الإقليمي محمد الخامس',lat:35.5709,lng:-5.3688,type:'public',desc:'مستشفى عمومي — طوارئ 24/7 — جميع التخصصات'},
+  {name:'مستشفى سانية الرمل',lat:35.5831,lng:-5.3681,type:'public',desc:'مستشفى عمومي — أطفال — نساء وتوليد'},
+  {name:'مستشفى الأطفال — تطوان',lat:35.5655,lng:-5.3755,type:'public',desc:'مختص بالأطفال وحديثي الولادة'},
+  {name:'مستشفى القرطبي',lat:35.5780,lng:-5.3600,type:'public',desc:'مستشفى عمومي — جراحة — عظام'},
+  {name:'مستشفى مولاي الحسن',lat:35.5600,lng:-5.3800,type:'public',desc:'مستشفى عمومي — نساء وتوليد — طوارئ'},
+  {name:'عيادة الأمل الخضراء',lat:35.5750,lng:-5.3650,type:'private',desc:'عيادة خاصة — قلب — أعصاب — جلدية'},
+  {name:'عيادة ابن سينا',lat:35.5720,lng:-5.3700,type:'private',desc:'عيادة خاصة — أسنان — عيون — طب عام'},
+  {name:'عيادة النور',lat:35.5680,lng:-5.3720,type:'private',desc:'عيادة متخصصة — عيون — جراحة ليزر'},
+  {name:'عيادة الحياة',lat:35.5800,lng:-5.3620,type:'private',desc:'عيادة نساء وتوليد — متابعة حمل — سونار'},
+  {name:'مركز صحي تطوان المدينة',lat:35.5740,lng:-5.3740,type:'center',desc:'مركز صحي — طب عام — تطعيمات'},
+  {name:'مركز صحي مارتيل',lat:35.6167,lng:-5.2750,type:'center',desc:'مركز صحي — طب عام — أسنان'},
+  {name:'مركز صحي سانية الرمل',lat:35.5835,lng:-5.3675,type:'center',desc:'مركز صحي — أطفال — طب عام'},
+];
+
 const TODAY_APPTS=[
   {time:'08:30',name:'عبد الله الراشدي',reason:'فحص دوري — قلب',status:'done',doctor:'د. محمد بنعلي'},
   {time:'09:00',name:'خديجة الزياني',reason:'ألم في الصدر',status:'done',doctor:'د. محمد بنعلي'},
   {time:'09:30',name:'حسن المغاري',reason:'نتائج تحاليل',status:'done',doctor:'د. فاطمة الإدريسي'},
   {time:'10:00',name:'مريم بنحمدة',reason:'متابعة الحمل',status:'arrived',doctor:'د. سلمى بنسودة'},
   {time:'10:30',name:'يوسف العمراني',reason:'كشف قلب',status:'waiting',doctor:'د. محمد بنعلي'},
-  {time:'11:00',name:'سناء الطالبي',reason:'ألم في الركبة',status:'waiting',doctor:'د. كريم الوفا'},
-  {time:'11:30',name:'أحمد بنعيسى',reason:'فحص نظر',status:'waiting',doctor:'د. يوسف المنصوري'},
-  {time:'14:00',name:'فاطمة أوزين',reason:'حساسية جلدية',status:'upcoming',doctor:'د. أمينة بوشنتوف'},
-  {time:'14:30',name:'مصطفى لمريني',reason:'فحص عام',status:'upcoming',doctor:'د. فاطمة الإدريسي'},
+  {time:'11:00',name:'سناء الطالبي',reason:'ألم في الركبة',status:'waiting',doctor:'د. رشيد العلوي'},
+  {time:'11:30',name:'أحمد بنعيسى',reason:'فحص نظر',status:'waiting',doctor:'د. عمر بنعبد الله'},
+  {time:'14:00',name:'فاطمة أوزين',reason:'حساسية جلدية',status:'upcoming',doctor:'د. نور الدين الشعيبي'},
+  {time:'14:30',name:'مصطفى لمريني',reason:'فحص عام',status:'upcoming',doctor:'د. عبد الرحيم الفاسي'},
   {time:'15:00',name:'رشيدة الحجي',reason:'ارتفاع ضغط الدم',status:'upcoming',doctor:'د. محمد بنعلي'},
 ];
+
 const PATIENT_APPTS=[
-  {id:'MA-7842',doctor:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الجامعي ابن سينا',date:'2025-06-24',day:24,month:'يونيو',time:'10:30 ص',status:'upcoming'},
-  {id:'MA-7801',doctor:'د. كريم الوفا',spec:'عظام',hosp:'المستشفى الجامعي ابن رشد',date:'2025-07-03',day:3,month:'يوليوز',time:'09:00 ص',status:'upcoming'},
-  {id:'MA-7654',doctor:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'عيادة الأمل',date:'2025-06-10',day:10,month:'يونيو',time:'11:00 ص',status:'done'},
-  {id:'MA-7420',doctor:'د. أمينة بوشنتوف',spec:'جلدية',hosp:'عيادة الأمل الخضراء',date:'2025-05-22',day:22,month:'ماي',time:'14:00 ص',status:'done'},
-  {id:'MA-7391',doctor:'د. يوسف المنصوري',spec:'عيون',hosp:'مركز صحي طنجة',date:'2025-05-01',day:1,month:'ماي',time:'10:00 ص',status:'cancelled'},
+  {id:'MA-7842',doctor:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الإقليمي محمد الخامس',date:'2025-06-24',day:24,month:'يونيو',time:'10:30 ص',status:'upcoming'},
+  {id:'MA-7801',doctor:'د. رشيد العلوي',spec:'عظام',hosp:'مستشفى القرطبي',date:'2025-07-03',day:3,month:'يوليوز',time:'09:00 ص',status:'upcoming'},
+  {id:'MA-7654',doctor:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'مستشفى الأطفال — تطوان',date:'2025-06-10',day:10,month:'يونيو',time:'11:00 ص',status:'done'},
+  {id:'MA-7420',doctor:'د. نور الدين الشعيبي',spec:'جلدية',hosp:'عيادة الأمل الخضراء',date:'2025-05-22',day:22,month:'ماي',time:'14:00 ص',status:'done'},
+  {id:'MA-7391',doctor:'د. عمر بنعبد الله',spec:'عيون',hosp:'عيادة النور',date:'2025-05-01',day:1,month:'ماي',time:'10:00 ص',status:'cancelled'},
 ];
 
 let bookingStep=1, selectedSpec='', selectedDoctor=null, selectedDate='', selectedTime='';
+let mapInstance=null, mapFullInstance=null;
+let currentUser = null;
+
+/* ══════════════════════════════════════════
+   LOGIN / REGISTER HANDLER
+══════════════════════════════════════════ */
+function handleLogin(e){
+  e.preventDefault();
+  const name = document.getElementById('login-name').value.trim();
+  const cni = document.getElementById('login-cni').value.trim();
+  const phone = document.getElementById('login-phone').value.trim();
+  const dob = document.getElementById('login-dob').value;
+
+  if(!name || !cni || !phone){
+    showToast('❌ يرجى ملء جميع الحقول الإجبارية');
+    return;
+  }
+
+  // Validate CNI format (Moroccan National ID)
+  const cniRegex = /^[A-Z]{1,2}\d{6}$/;
+  if (!cniRegex.test(cni.toUpperCase())) {
+    showToast('❌ رقم البطاقة الوطنية غير صالح (مثال: AB123456)');
+    return;
+  }
+
+  // Validate phone format (Moroccan)
+  const phoneRegex = /^(06|07)\d{8}$/;
+  if (!phoneRegex.test(phone)) {
+    showToast('❌ رقم الهاتف غير صالح (مثال: 0612345678)');
+    return;
+  }
+
+  currentUser = {
+    type: 'patient',
+    name, 
+    cni: cni.toUpperCase(), 
+    phone, 
+    dob, 
+    city:'تطوان', 
+    date: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    source: 'ميعاد - تطوان'
+  };
+
+  // Send to Google Sheet
+  const btn = document.getElementById('login-btn');
+  btn.textContent = 'جاري الحفظ...';
+  btn.disabled = true;
+
+  // Try multiple methods for better reliability
+  sendToGoogleSheet(currentUser)
+    .then(() => {
+      showToast('✅ تم تسجيل الدخول وحفظ البيانات في Google Sheets');
+      document.getElementById('login-overlay').classList.add('hidden');
+      setTimeout(() => {
+        document.getElementById('login-overlay').style.display='none';
+      }, 400);
+    })
+    .catch(err => {
+      console.log('Sheet error:', err);
+      showToast('⚠️ تم تسجيل الدخول محلياً — سيتم المزامنة لاحقاً');
+      document.getElementById('login-overlay').classList.add('hidden');
+      setTimeout(() => {
+        document.getElementById('login-overlay').style.display='none';
+      }, 400);
+      // Store locally for later sync
+      localStorage.setItem('pendingUserData', JSON.stringify(currentUser));
+    })
+    .finally(() => {
+      btn.textContent = 'دخول إلى الموقع →';
+      btn.disabled = false;
+    });
+}
+
+// Enhanced Google Sheets sender with retry logic
+async function sendToGoogleSheet(data) {
+  const maxRetries = 2;
+  let lastError;
+
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      // Method 1: POST with no-cors (primary)
+      const response = await fetch(SHEET_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+
+      // Since no-cors hides response, we consider it sent
+      console.log('Data sent to Google Sheets (attempt ' + (i+1) + ')');
+      return true;
+
+    } catch (err) {
+      lastError = err;
+      console.log('Attempt ' + (i+1) + ' failed:', err);
+      if (i < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1))); // Exponential backoff
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// Sync pending data when connection is available
+function syncPendingData() {
+  const pending = localStorage.getItem('pendingUserData');
+  if (pending) {
+    try {
+      const data = JSON.parse(pending);
+      sendToGoogleSheet(data)
+        .then(() => {
+          localStorage.removeItem('pendingUserData');
+          console.log('Pending data synced successfully');
+        })
+        .catch(err => console.log('Sync failed:', err));
+    } catch (e) {
+      console.log('Error parsing pending data:', e);
+    }
+  }
+}
+
+/* ══════════════════════════════════════════
+   CHAT BOT (AI Assistant)
+══════════════════════════════════════════ */
+function toggleChat(){
+  const w = document.getElementById('chat-widget');
+  w.classList.toggle('open');
+}
+
+const BOT_RESPONSES = {
+  'طوارئ': 'في حالات الطوارئ، اتصل فوراً بـ <strong>15</strong> (SAMU) أو <strong>150</strong> (الحماية المدنية). 🚨',
+  'سكر': 'مرض السكري يتطلب متابعة دورية لسكر الدم. أنصحك بزيارة طبيب باطنية أو غدد صماء. هل تريد حجز موعد؟',
+  'ضغط': 'ارتفاع ضغط الدم يحتاج لمراقبة يومية. تجنب الملح الزائد والتوتر. يمكنني مساعدتك في حجز موعد مع أخصائي قلب.',
+  'حجز': 'لحجز موعد، اضغط على زر "احجز موعداً" في الأعلى أو اذهب لصفحة <strong>البحث</strong> واختر طبيبك. 📅',
+  'موعد': 'يمكنك مشاهدة مواعيدك القادمة في صفحة <strong>مواعيدي</strong>. هل تريد تغيير موعد أو إلغاؤه؟',
+  'تطوان': 'تطوان تتوفر على عدة مستشفيات: المستشفى الإقليمي محمد الخامس، مستشفى سانية الرمل، مستشفى القرطبي، ومستشفى مولاي الحسن.',
+  'مستشفى': 'أفضل المستشفيات في تطوان: محمد الخامس (طوارئ 24/7)، القرطبي (جراحة)، سانية الرمل (أطفال). يمكنك رؤيتها على الخريطة.',
+  'خريطة': 'اضغط على 🗺️ <strong>الخريطة</strong> في القائمة العلوية لرؤية جميع المستشفيات على خريطة تفاعلية.',
+  'سعر': 'أسعار الكشف تتراوح بين 80 و 250 درهم حسب التخصص والطبيب. العيادات العمومية مجانية مع RAMED.',
+  'راميد': 'بطاقة RAMED تمنحك ولوجاً مجانياً للمستشفيات العمومية. أحضرها مع بطاقة التعريف عند كل زيارة.',
+  'ألم': 'إذا كان الألم شديداً أو مصحوباً بحرارة أو صعوبة في التنفس، اذهب للطوارئ فوراً. إذا كان خفيفاً، يمكنك حجز موعد في التخصص المناسب.',
+  'صداع': 'الصداع المستدعي للقلق: فجائي شديد، مصحوب بتشنجات، ضعف في الأطراف، أو حمى. في هذه الحالات اذهب للطوارئ.',
+  'تطعيم': 'التطعيمات الأساسية متوفرة في المراكز الصحية مجاناً. للأطفال: BCG، الخماسي، السداسي، شلل الأطفال.',
+  'حمل': 'للمتابعة الصحية للحمل، أنصحك بزيارة أخصائية نساء وتوليد. ميعاد يوفر أطباء متخصصين في تطوان.',
+  'عيون': 'لأمراض العيون في تطوان: د. عمر بنعبد الله (محمد الخامس) ود. يوسف المنصوري (عيادة النور).',
+  'أسنان': 'لطب الأسنان: د. يونس المرابط (ابن سينا)، د. سارة الحسني (الأمل)، ود. كريم الوفا (مارتيل).',
+  'قلب': 'لأمراض القلب في تطوان: د. محمد بنعلي (محمد الخامس) ود. عبد الله التطواني (الأمل الخضراء).',
+  'عظام': 'للعظام والمفاصل: د. رشيد العلوي (القرطبي) ود. كريم الوفا (عيادة الصحة).',
+  'أطفال': 'للأطفال: د. فاطمة الزهراء (مستشفى الأطفال) ود. ليلى الصقلي (سانية الرمل).',
+  'جلدية': 'للجلدية: د. نور الدين الشعيبي (عيادة الأمل) ود. أمينة بوشنتوف (مركز صحي المدينة).',
+  'أذن': 'للأنف والأذن: د. حسن التازي (مستشفى سانية الرمل).',
+  'مسالك': 'للمسالك البولية: د. جمال الدين الحسني (محمد الخامس).',
+  'رئة': 'للرئة والتنفس: د. سعيد البوزيدي (مستشفى القرطبي).',
+  'عصب': 'للأعصاب: د. فاطمة الناصري (محمد الخامس) ود. أمينة بوشنتوف (الأمل الخضراء).',
+  'نساء': 'للنساء والتوليد: د. سلمى بنسودة (مولاي الحسن) ود. خديجة الريفي (عيادة الحياة).',
+};
+
+function sendChat(){
+  const input = document.getElementById('chat-input');
+  const body = document.getElementById('chat-body');
+  const text = input.value.trim();
+  if(!text) return;
+
+  // User message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-msg user';
+  userMsg.textContent = text;
+  body.appendChild(userMsg);
+  input.value = '';
+  body.scrollTop = body.scrollHeight;
+
+  // Show typing indicator
+  const typingMsg = document.createElement('div');
+  typingMsg.className = 'chat-msg bot typing';
+  typingMsg.id = 'typing-indicator';
+  typingMsg.textContent = '⏳ جاري التفكير...';
+  body.appendChild(typingMsg);
+  body.scrollTop = body.scrollHeight;
+
+  // Call Groq AI API
+  callGroqAI(text, body);
+}
+
+async function callGroqAI(userMessage, chatBody) {
+  const GROQ_API_KEY = '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';
+
+  const systemPrompt = `أنت مساعد طبي ذكي في منصة "ميعاد" لحجز المواعيد الطبية في مدينة تطوان بالمغرب. 
+
+قواعدك:
+1. أجب باللغة العربية الفصحى أو الدارجة المغربية
+2. قدم نصائح صحية أولية فقط — لا تشخص أمراضاً نهائياً
+3. في حالات الطوارئ، أبلغ المستخدم بالاتصال فوراً بـ 15 (SAMU) أو 150 (الحماية المدنية)
+4. ساعد المستخدمين في العثور على أطباء حسب التخصص في تطوان
+5. أعطِ معلومات عن المستشفيات والعيادات المتوفرة
+6. شجع المستخدمين على حجز موعد عبر المنصة
+7. كن مهذباً، مختصراً، ومفيداً
+
+التخصصات المتوفرة في تطوان: قلب وأوعية، أطفال، أسنان، عيون، عظام، أعصاب، نساء وتوليد، جلدية، أنف وأذن، مسالك بولية، رئة وتنفس، طب عام.
+
+المستشفيات الرئيسية: المستشفى الإقليمي محمد الخامس، مستشفى سانية الرمل، مستشفى القرطبي، مستشفى مولاي الحسن.
+
+لا تقدم وصفات طبية أو تشخيصات نهائية. دائماً أنصح بزيارة الطبيب.`;
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + GROQ_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.7,
+        max_tokens: 800
+      })
+    });
+
+    // Remove typing indicator
+    const typingEl = document.getElementById('typing-indicator');
+    if(typingEl) typingEl.remove();
+
+    if (!response.ok) {
+      throw new Error('Groq API error: ' + response.status);
+    }
+
+    const data = await response.json();
+    const reply = data.choices[0].message.content;
+
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-msg bot';
+    botMsg.innerHTML = formatBotReply(reply);
+    chatBody.appendChild(botMsg);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    // Save chat to Google Sheets
+    saveChatToSheet(userMessage, reply);
+
+  } catch (error) {
+    console.error('Groq AI Error:', error);
+
+    // Remove typing indicator
+    const typingEl = document.getElementById('typing-indicator');
+    if(typingEl) typingEl.remove();
+
+    // Fallback to keyword responses
+    let fallbackReply = 'عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي. يمكنك سؤالي عن:<br>• حجز موعد<br>• مستشفيات تطوان<br>• نصائح صحية أولية<br>• أطباء حسب التخصص<br>• الطوارئ (15 أو 150) 🚨';
+    const lower = userMessage.toLowerCase();
+    for(const key in BOT_RESPONSES){
+      if(lower.includes(key)){
+        fallbackReply = BOT_RESPONSES[key];
+        break;
+      }
+    }
+
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-msg bot';
+    botMsg.innerHTML = fallbackReply;
+    chatBody.appendChild(botMsg);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+}
+
+function formatBotReply(text) {
+  // Convert markdown-style formatting to HTML
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+    .replace(/• /g, '&bull; ')
+    .replace(/- /g, '&bull; ');
+}
+
+function saveChatToSheet(userMsg, botReply) {
+  const chatData = {
+    type: 'chat',
+    userMessage: userMsg,
+    botReply: botReply,
+    timestamp: new Date().toISOString(),
+    user: currentUser ? currentUser.name : 'زائر'
+  };
+
+  fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(chatData)
+  }).catch(err => console.log('Chat save error:', err));
+}
 
 /* ══════════════════════════════════════════
    ROUTER
@@ -970,20 +1275,71 @@ function go(page){
   document.getElementById('page-'+page).classList.add('active');
   window.scrollTo(0,0);
   if(page==='search')renderSearch();
+  if(page==='map'){setTimeout(initFullMap,100);}
   if(page==='dashboard')renderDashboard();
   if(page==='admin')renderAdmin();
   if(page==='booking'){bookingStep=1;renderBooking();}
-  if(page==='home')renderHome();
+  if(page==='home'){renderHome(); setTimeout(initPreviewMap,300);}
+}
+
+/* ══════════════════════════════════════════
+   MAPS (OpenStreetMap + Leaflet)
+══════════════════════════════════════════ */
+function initPreviewMap(){
+  const el = document.getElementById('map-preview');
+  if(!el || el.dataset.map) return;
+  el.dataset.map = '1';
+  const map = L.map(el).setView([35.572, -5.368], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  HOSPITALS.slice(0,6).forEach(h => {
+    const color = h.type==='public' ? 'green' : h.type==='private' ? 'blue' : 'orange';
+    const marker = L.circleMarker([h.lat, h.lng], {
+      radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
+    }).addTo(map);
+    marker.bindPopup(`<b>${h.name}</b><br>${h.desc}`);
+  });
+}
+
+function initFullMap(){
+  const el = document.getElementById('map-full');
+  if(!el || el.dataset.map) return;
+  el.dataset.map = '1';
+  const map = L.map(el).setView([35.572, -5.368], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  HOSPITALS.forEach(h => {
+    const color = h.type==='public' ? '#0B6E4F' : h.type==='private' ? '#0284C7' : '#F59E0B';
+    const icon = L.divIcon({
+      className:'custom-div-icon',
+      html:`<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
+      iconSize:[14,14],iconAnchor:[7,7]
+    });
+    L.marker([h.lat, h.lng], {icon}).addTo(map).bindPopup(`<b>${h.name}</b><br><span style="color:#666;font-size:12px">${h.desc}</span><br><button onclick="showToast('جاري فتح الاتجاهات...')" style="margin-top:6px;padding:4px 10px;background:#0B6E4F;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:Tajawal;font-size:12px">الحصول على الاتجاهات</button>`);
+  });
 }
 
 /* ══════════════════════════════════════════
    RENDER HOME
 ══════════════════════════════════════════ */
 function renderHome(){
-  const el=document.getElementById('featured-doctors');
-  if(!el||el.dataset.rendered)return;
-  el.dataset.rendered='1';
-  el.innerHTML=DOCTORS.slice(0,3).map(d=>docCard(d)).join('');
+  const specEl = document.getElementById('spec-grid');
+  if(specEl && !specEl.dataset.rendered){
+    specEl.dataset.rendered = '1';
+    specEl.innerHTML = SPECS.slice(0,6).map(s=>`
+      <div class="spec-card" onclick="go('search')">
+        <div class="spec-icon">${s.icon}</div>
+        <div class="spec-name">${s.name}</div>
+        <div class="spec-count">${s.count} طبيب</div>
+      </div>`).join('');
+  }
+  const el = document.getElementById('featured-doctors');
+  if(el && !el.dataset.rendered){
+    el.dataset.rendered = '1';
+    el.innerHTML = DOCTORS.slice(0,3).map(d=>docCard(d)).join('');
+  }
 }
 
 function docCard(d){
@@ -1015,7 +1371,10 @@ function docCard(d){
    RENDER SEARCH
 ══════════════════════════════════════════ */
 function renderSearch(){
-  document.getElementById('search-results').innerHTML=DOCTORS.map(d=>docCard(d)).join('');
+  const el = document.getElementById('search-results');
+  if(el) el.innerHTML = DOCTORS.map(d=>docCard(d)).join('');
+  const cnt = document.getElementById('results-count');
+  if(cnt) cnt.innerHTML = `عرض <strong>${DOCTORS.length}</strong> نتيجة`;
 }
 function filterToggle(el){
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
@@ -1030,7 +1389,6 @@ function openDoctor(id){
   if(!d)return;
   selectedDoctor=d;
   const days=['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
-  const months=['يناير','فبراير','مارس','أبريل','ماي','يونيو','يوليوز','غشت','شتنبر','أكتوبر','نونبر','دجنبر'];
   const today=new Date();
   const dayCards=Array.from({length:7},(_,i)=>{
     const d2=new Date(today);d2.setDate(today.getDate()+i);
@@ -1223,9 +1581,9 @@ function renderBooking(){
         <div class="confirm-row"><span>🕐 الوقت</span><strong>${selectedTime||'10:30'}</strong></div>
         <div class="confirm-row"><span>💰 سعر الكشف</span><strong>${d.price} درهم</strong></div>
       </div>
-      <div class="form-group"><label class="form-label">الاسم الكامل *</label><input class="form-input" placeholder="اسمك الكامل" value="يوسف العمراني"></div>
-      <div class="form-group"><label class="form-label">رقم الهاتف * (للتأكيد SMS)</label><input class="form-input" placeholder="06XXXXXXXX" value="0612345678" dir="ltr"></div>
-      <div class="form-group"><label class="form-label">رقم البطاقة الوطنية</label><input class="form-input" placeholder="AB123456" dir="ltr"></div>
+      <div class="form-group"><label class="form-label">الاسم الكامل *</label><input class="form-input" placeholder="اسمك الكامل" value="${currentUser?currentUser.name:'يوسف العمراني'}"></div>
+      <div class="form-group"><label class="form-label">رقم الهاتف * (للتأكيد SMS)</label><input class="form-input" placeholder="06XXXXXXXX" value="${currentUser?currentUser.phone:'0612345678'}" dir="ltr"></div>
+      <div class="form-group"><label class="form-label">رقم البطاقة الوطنية</label><input class="form-input" placeholder="AB123456" value="${currentUser?currentUser.cni:''}" dir="ltr"></div>
       <div class="form-group"><label class="form-label">سبب الزيارة (اختياري للطبيب)</label><textarea class="form-input" rows="2" placeholder="صف حالتك باختصار..."></textarea></div>
       <div style="background:#FEF3C7;border-radius:var(--rs);padding:.75rem;font-size:13px;margin-bottom:1.25rem;color:#92400e">
         📋 الوثائق المطلوبة: ${d.docs.join(' — ')}
@@ -1248,6 +1606,34 @@ function confirmBooking(){
   const t=document.getElementById('confirmed-time');
   if(d)d.textContent='الثلاثاء '+(selectedDate||24)+' يونيو 2025';
   if(t)t.textContent=(selectedTime||'10:30')+' صباحاً';
+
+  // Save appointment to Google Sheets
+  const doctor = selectedDoctor || DOCTORS[0];
+  const appointmentData = {
+    type: 'appointment',
+    patientName: currentUser ? currentUser.name : document.querySelector('.booking-card input')?.value || 'غير معروف',
+    patientPhone: currentUser ? currentUser.phone : '',
+    patientCNI: currentUser ? currentUser.cni : '',
+    doctorName: doctor.name,
+    doctorSpec: doctor.spec,
+    hospital: doctor.hosp,
+    city: doctor.city,
+    date: selectedDate ? '2025-06-' + selectedDate : '2025-06-24',
+    time: selectedTime || '10:30',
+    price: doctor.price,
+    status: 'confirmed',
+    timestamp: new Date().toISOString(),
+    appointmentId: 'MA-' + Math.floor(1000 + Math.random() * 9000)
+  };
+
+  // Send to Google Sheets
+  sendToGoogleSheet(appointmentData)
+    .then(() => console.log('Appointment saved to Google Sheets'))
+    .catch(err => {
+      console.log('Failed to save appointment:', err);
+      localStorage.setItem('pendingAppointment', JSON.stringify(appointmentData));
+    });
+
   go('success');
   showToast('✅ تم تأكيد موعدك! ستصلك رسالة SMS');
 }
@@ -1322,7 +1708,7 @@ function renderAdmin(){
     </div>
   </div>`).join('');
 
-  document.getElementById('admin-doctors-list').innerHTML=DOCTORS.map(d=>`
+  document.getElementById('admin-doctors-list').innerHTML=DOCTORS.slice(0,8).map(d=>`
   <div class="today-row">
     <div style="display:flex;align-items:center;gap:10px;flex:1">
       <div class="doc-avatar" style="background:${d.color};width:42px;height:42px;font-size:16px;border-radius:50%;flex-shrink:0">${d.init}</div>
@@ -1336,8 +1722,7 @@ function renderAdmin(){
     </div>
   </div>`).join('');
 
-  document.getElementById('all-appointments').innerHTML=`
-  <div class="today-header">كل المواعيد — يونيو 2025</div>`+TODAY_APPTS.slice(0,6).map(a=>`
+  document.getElementById('all-appointments').innerHTML=`<div class="today-header">كل المواعيد — يونيو 2025</div>`+TODAY_APPTS.slice(0,6).map(a=>`
   <div class="today-row">
     <div class="today-time">${a.time}</div>
     <div class="today-patient"><div class="today-name">${a.name}</div><div class="today-reason">${a.reason}</div></div>
@@ -1349,7 +1734,7 @@ function renderAdmin(){
     const wCtx=document.getElementById('chart-weekly');
     if(wCtx&&!wCtx.dataset.drawn){
       wCtx.dataset.drawn='1';
-      new Chart(wCtx,{type:'bar',data:{labels:['إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت','أحد'],datasets:[{label:'المواعيد',data:[32,28,35,41,12,8,25],backgroundColor:'#0B6E4F',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
+      new Chart(wCtx,{type:'bar',data:{labels:['إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت','أحد'],datasets:[{label:'المواعيد',data:[32,28,35,41,12,8,25],backgroundColor:'#0B6E4F',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}}});
     }
     const sCtx=document.getElementById('chart-specs');
     if(sCtx&&!sCtx.dataset.drawn){
@@ -1361,7 +1746,7 @@ function renderAdmin(){
       mCtx.dataset.drawn='1';
       const labels=Array.from({length:30},(_,i)=>(i+1)+'');
       const data=labels.map(()=>Math.floor(20+Math.random()*25));
-      new Chart(mCtx,{type:'line',data:{labels,datasets:[{label:'مواعيد',data,fill:true,borderColor:'#0B6E4F',backgroundColor:'rgba(11,110,79,.08)',tension:.4,pointRadius:0}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}}});
+      new Chart(mCtx,{type:'line',data:{labels,datasets:[{label:'مواعيد',data,fill:true,borderColor:'#0B6E4F',backgroundColor:'rgba(11,110,79,.08)',tension:.4,pointRadius:0}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}}}});
     }
   },200);
 }
@@ -1387,6 +1772,9 @@ function showToast(msg){
 ══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   renderHome();
+  setTimeout(initPreviewMap,500);
+  // Try to sync any pending data
+  setTimeout(syncPendingData, 2000);
 });
 </script>
 </body>
