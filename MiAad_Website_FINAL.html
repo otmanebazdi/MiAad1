@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ميعاد — احجز موعدك الطبي</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js">
+function loginPatient(){
+  const name=document.getElementById('patientName').value;
+  const cni=document.getElementById('patientCNI').value;
+  const phone=document.getElementById('patientPhone').value;
+
+  if(!name || !cni || !phone){
+    alert('يرجى ملء جميع المعلومات');
+    return;
+  }
+
+  localStorage.setItem('patientName',name);
+  localStorage.setItem('patientCNI',cni);
+
+  // مثال لربط Google Sheets
+  // استبدل YOUR_GOOGLE_SCRIPT_URL برابط Google Apps Script الخاص بك
+  fetch('YOUR_GOOGLE_SCRIPT_URL',{
+    method:'POST',
+    mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,cni,phone,date:new Date().toISOString()})
+  }).catch(()=>{});
+
+  document.getElementById('loginScreen').style.display='none';
+  showToast('مرحباً '+name+' 👋');
+}
+
+function initMap(){
+  const map=L.map('hospital-map').setView([35.5889,-5.3626],12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'OpenStreetMap'
+  }).addTo(map);
+
+  const hospitals=[
+    {name:'مستشفى سانية الرمل',lat:35.5785,lng:-5.3684},
+    {name:'مستشفى الحسن الثاني',lat:35.5711,lng:-5.3720},
+    {name:'مصحة تطوان',lat:35.5650,lng:-5.3600},
+    {name:'مستشفى السويسي الرباط',lat:34.0120,lng:-6.8320}
+  ];
+
+  hospitals.forEach(h=>{
+    L.marker([h.lat,h.lng]).addTo(map)
+      .bindPopup('<strong>'+h.name+'</strong>');
+  });
+}
+
+setTimeout(()=>{
+  if(document.getElementById('hospital-map')){
+    initMap();
+  }
+},1200);
+
+function toggleAI(){
+  const box=document.getElementById('aiBox');
+  box.style.display=box.style.display==='block'?'none':'block';
+}
+
+function sendAI(){
+  const input=document.getElementById('aiInput');
+  const messages=document.getElementById('aiMessages');
+
+  if(!input.value.trim()) return;
+
+  messages.innerHTML += '<div style="margin-top:10px"><strong>أنت:</strong> '+input.value+'</div>';
+
+  setTimeout(()=>{
+    messages.innerHTML += '<div style="margin-top:10px;color:#0B6E4F"><strong>MiAad AI:</strong> يمكنك إضافة Grok API أو OpenAI API لاحقاً للحصول على ذكاء اصطناعي حقيقي للإجابة الطبية.</div>';
+    messages.scrollTop=messages.scrollHeight;
+  },700);
+
+  input.value='';
+}
+
+</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --p:#0B6E4F;--pl:#12876A;--p2:#085C41;
+  --bg:#E8F5F0;--bg2:#F0FAF6;
+  --acc:#F59E0B;--acc2:#D97706;
+  --red:#EF4444;--grn:#10B981;
+  --txt:#0D1B12;--muted:#5A7569;
+  --brd:#D1E8DF;--white:#fff;
+  --card:#fff;--surf:#F8FDFB;
+  --r:14px;--rs:8px;--rl:20px;
+  --sh:0 2px 16px rgba(11,110,79,.10);
+  --sh2:0 4px 32px rgba(11,110,79,.16);
+}
+body{font-family:'Tajawal',sans-serif;background:var(--surf);color:var(--txt);direction:rtl}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;font-family:'Tajawal',sans-serif}
+input,select,textarea{font-family:'Tajawal',sans-serif}
+.page{display:none;min-height:100vh;animation:fadeIn .35s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── NAV ── */
+nav{background:var(--white);border-bottom:1px solid var(--brd);padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:999;box-shadow:0 2px 12px rgba(11,110,79,.07)}
+.nav-logo{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:800;color:var(--p)}
+.nav-logo svg{width:36px;height:36px}
+.nav-links{display:flex;gap:6px;align-items:center}
+.nav-link{padding:8px 16px;border-radius:var(--rs);font-size:14px;font-weight:500;color:var(--muted);transition:.2s;border:none;background:none}
+.nav-link:hover,.nav-link.active{color:var(--p);background:var(--bg)}
+.nav-btn{padding:9px 20px;background:var(--p);color:#fff;border-radius:var(--rs);font-size:14px;font-weight:700;border:none;transition:.2s}
+.nav-btn:hover{background:var(--pl)}
+.nav-badge{background:var(--acc);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-right:4px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 24px;border-radius:var(--rs);font-size:15px;font-weight:700;border:none;transition:.2s;cursor:pointer}
+.btn-primary{background:var(--p);color:#fff}.btn-primary:hover{background:var(--pl);transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--p);border:2px solid var(--p)}.btn-outline:hover{background:var(--bg)}
+.btn-acc{background:var(--acc);color:#fff}.btn-acc:hover{background:var(--acc2)}
+.btn-sm{padding:7px 16px;font-size:13px}
+.btn-lg{padding:15px 36px;font-size:17px;border-radius:var(--r)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-ghost{background:var(--bg);color:var(--p)}.btn-ghost:hover{background:var(--brd)}
+
+/* ── CARDS ── */
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem;box-shadow:var(--sh)}
+.card:hover{box-shadow:var(--sh2);transform:translateY(-2px);transition:.25s}
+
+/* ── TAGS/BADGES ── */
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.tag-g{background:#DCFCE7;color:#166534}.tag-b{background:#DBEAFE;color:#1e40af}
+.tag-a{background:#FEF3C7;color:#92400e}.tag-r{background:#FEE2E2;color:#991b1b}
+.tag-p{background:var(--bg);color:var(--p)}
+
+/* ── STARS ── */
+.stars{color:#F59E0B;font-size:14px;letter-spacing:1px}
+.star-score{font-weight:700;font-size:13px;color:var(--txt)}
+
+/* ── GRID ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+@media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+
+/* ──────────────────────────────────────────────
+   PAGE 1 — LANDING
+────────────────────────────────────────────── */
+#hero{
+  background:linear-gradient(135deg,#0B6E4F 0%,#0A5E42 40%,#085038 100%);
+  padding:70px 5% 80px;position:relative;overflow:hidden
+}
+#hero::before{
+  content:'';position:absolute;top:-80px;left:-80px;
+  width:500px;height:500px;border-radius:50%;
+  background:rgba(255,255,255,.04);pointer-events:none
+}
+#hero::after{
+  content:'';position:absolute;bottom:-100px;right:-60px;
+  width:400px;height:400px;border-radius:50%;
+  background:rgba(245,158,11,.08);pointer-events:none
+}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);color:#fff;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:22px}
+.hero-title{font-size:52px;font-weight:900;color:#fff;line-height:1.15;margin-bottom:18px}
+.hero-title span{color:#F59E0B}
+.hero-sub{font-size:19px;color:rgba(255,255,255,.78);max-width:580px;margin-bottom:40px;line-height:1.65}
+.search-box{background:#fff;border-radius:var(--rl);padding:8px;display:flex;gap:8px;align-items:center;max-width:740px;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.search-box select,.search-box input{flex:1;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:var(--txt);background:transparent}
+.search-divider{width:1px;height:36px;background:var(--brd)}
+.hero-stats{display:flex;gap:40px;margin-top:44px}
+.hstat{text-align:center}
+.hstat-n{font-size:30px;font-weight:900;color:#fff}
+.hstat-l{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px}
+
+.spec-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;padding:3rem 5% 1rem}
+.spec-card{background:var(--white);border:1.5px solid var(--brd);border-radius:var(--r);padding:1.4rem 1rem;text-align:center;cursor:pointer;transition:.25s}
+.spec-card:hover{border-color:var(--p);background:var(--bg);transform:translateY(-3px);box-shadow:var(--sh)}
+.spec-icon{font-size:32px;margin-bottom:10px}
+.spec-name{font-size:14px;font-weight:700;color:var(--txt)}
+.spec-count{font-size:12px;color:var(--muted);margin-top:3px}
+
+.section{padding:3.5rem 5%}
+.sec-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.75rem}
+.sec-title{font-size:24px;font-weight:800;color:var(--txt)}
+.sec-sub{font-size:14px;color:var(--muted);margin-top:4px}
+
+.doc-card{background:var(--white);border-radius:var(--rl);border:1px solid var(--brd);overflow:hidden;transition:.25s;cursor:pointer}
+.doc-card:hover{transform:translateY(-4px);box-shadow:var(--sh2)}
+.doc-card-top{background:var(--bg);padding:1.5rem;display:flex;gap:14px;align-items:flex-start}
+.doc-avatar{width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid #fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff}
+.doc-name{font-size:17px;font-weight:800;color:var(--txt)}
+.doc-spec{font-size:13px;color:var(--p);font-weight:600;margin:3px 0}
+.doc-hosp{font-size:12px;color:var(--muted)}
+.doc-card-body{padding:1.2rem 1.5rem}
+.doc-meta{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.doc-meta span{display:flex;align-items:center;gap:4px}
+.avail-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
+.avail-y{background:#DCFCE7;color:#166534}
+.avail-n{background:#FEE2E2;color:#991b1b}
+
+.how-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:3rem 5%}
+.how-step{text-align:center;position:relative}
+.how-step:not(:last-child)::after{content:'←';position:absolute;left:-18px;top:22px;font-size:22px;color:var(--brd)}
+.how-num{width:50px;height:50px;background:var(--p);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 14px}
+.how-t{font-size:15px;font-weight:700;margin-bottom:6px}
+.how-d{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ──────────────────────────────────────────────
+   PAGE 2 — SEARCH RESULTS
+────────────────────────────────────────────── */
+.results-header{background:var(--white);border-bottom:1px solid var(--brd);padding:1.2rem 5%}
+.results-layout{display:grid;grid-template-columns:280px 1fr;gap:2rem;padding:2rem 5%}
+.filters-panel{background:var(--white);border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem;height:fit-content;position:sticky;top:88px}
+.filter-title{font-size:16px;font-weight:800;margin-bottom:1.25rem;color:var(--txt)}
+.filter-group{margin-bottom:1.5rem}
+.filter-label{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.6rem}
+.filter-option{display:flex;align-items:center;gap:8px;padding:7px 0;cursor:pointer;font-size:14px}
+.filter-option input{accent-color:var(--p);width:16px;height:16px}
+.results-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.results-count{font-size:15px;font-weight:700;color:var(--txt)}
+
+/* ──────────────────────────────────────────────
+   PAGE 3 — DOCTOR PROFILE
+────────────────────────────────────────────── */
+.profile-hero{background:var(--white);border-bottom:1px solid var(--brd);padding:2.5rem 5%}
+.profile-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem;padding:2rem 5%}
+.profile-card{background:var(--white);border-radius:var(--rl);border:1px solid var(--brd);padding:1.75rem}
+.prof-avatar{width:100px;height:100px;border-radius:50%;border:4px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:800;color:#fff;margin-left:24px;flex-shrink:0}
+.info-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--brd);font-size:14px}
+.info-row:last-child{border-bottom:none}
+.info-icon{font-size:20px;width:32px;text-align:center}
+.info-label{color:var(--muted);flex:1}
+.info-val{font-weight:700;color:var(--txt)}
+
+.schedule-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:1rem}
+.sch-day{border-radius:var(--rs);padding:10px 4px;text-align:center;cursor:pointer;border:1.5px solid var(--brd);transition:.2s}
+.sch-day:hover{border-color:var(--p);background:var(--bg)}
+.sch-day.on{background:var(--p);border-color:var(--p);color:#fff}
+.sch-day.off{background:#F9FAFB;opacity:.5;cursor:not-allowed}
+.sch-day-name{font-size:11px;font-weight:700}
+.sch-day-num{font-size:17px;font-weight:800;margin-top:2px}
+
+.time-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:1rem}
+.time-slot{border:1.5px solid var(--brd);border-radius:var(--rs);padding:9px 0;text-align:center;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.time-slot:hover{border-color:var(--p);color:var(--p);background:var(--bg)}
+.time-slot.on{background:var(--p);color:#fff;border-color:var(--p)}
+.time-slot.busy{background:#F9FAFB;color:#CBD5E1;cursor:not-allowed;border-color:#E5E7EB}
+
+.review-item{border-bottom:1px solid var(--brd);padding:1.2rem 0}
+.review-item:last-child{border-bottom:none}
+.reviewer{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.rev-avatar{width:38px;height:38px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--p)}
+
+/* ──────────────────────────────────────────────
+   PAGE 4 — BOOKING FLOW
+────────────────────────────────────────────── */
+.booking-wrap{max-width:720px;margin:0 auto;padding:2.5rem 1rem}
+.booking-steps{display:flex;gap:0;margin-bottom:2.5rem;position:relative}
+.booking-steps::before{content:'';position:absolute;top:20px;right:10%;left:10%;height:2px;background:var(--brd);z-index:0}
+.bstep{flex:1;text-align:center;position:relative;z-index:1}
+.bstep-num{width:42px;height:42px;border-radius:50%;border:2.5px solid var(--brd);background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--muted);margin:0 auto 8px;transition:.3s}
+.bstep.done .bstep-num{background:var(--grn);border-color:var(--grn);color:#fff}
+.bstep.active .bstep-num{background:var(--p);border-color:var(--p);color:#fff;box-shadow:0 0 0 5px rgba(11,110,79,.15)}
+.bstep-label{font-size:12px;font-weight:700;color:var(--muted)}
+.bstep.active .bstep-label{color:var(--p)}
+.bstep.done .bstep-label{color:var(--grn)}
+
+.booking-card{background:#fff;border-radius:var(--rl);border:1px solid var(--brd);padding:2rem}
+.booking-title{font-size:20px;font-weight:800;margin-bottom:1.5rem;color:var(--txt)}
+.form-group{margin-bottom:1.25rem}
+.form-label{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:.5rem;display:block}
+.form-input{width:100%;padding:12px 16px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:15px;font-family:'Tajawal',sans-serif;transition:.2s;outline:none;color:var(--txt)}
+.form-input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(11,110,79,.1)}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A7569' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 14px center;padding-left:42px}
+
+.spec-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.spec-pick-item{border:2px solid var(--brd);border-radius:var(--r);padding:1rem;text-align:center;cursor:pointer;transition:.2s}
+.spec-pick-item:hover{border-color:var(--p);background:var(--bg)}
+.spec-pick-item.on{border-color:var(--p);background:var(--bg)}
+.spec-pick-item .icon{font-size:28px;margin-bottom:6px}
+.spec-pick-item .name{font-size:13px;font-weight:700}
+
+.doc-pick-item{border:1.5px solid var(--brd);border-radius:var(--r);padding:1rem;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.2s;margin-bottom:.75rem}
+.doc-pick-item:hover,.doc-pick-item.on{border-color:var(--p);background:var(--bg)}
+.doc-pick-item.on{border-width:2px}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:1rem 0}
+.cal-day{text-align:center;padding:8px 4px;border-radius:var(--rs);cursor:pointer;font-size:13px;transition:.2s}
+.cal-day.avail:hover,.cal-day.selected{background:var(--p);color:#fff}
+.cal-day.empty{cursor:default}
+.cal-day.past{color:#CBD5E1;cursor:not-allowed}
+.cal-day-name{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:4px 0}
+
+.confirm-summary{background:var(--bg);border-radius:var(--r);padding:1.5rem;margin-bottom:1.5rem}
+.confirm-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid var(--brd)}
+.confirm-row:last-child{border-bottom:none;font-weight:800;font-size:15px}
+
+/* ──────────────────────────────────────────────
+   PAGE 5 — SUCCESS
+────────────────────────────────────────────── */
+.success-wrap{max-width:540px;margin:4rem auto;padding:0 1rem;text-align:center}
+.success-icon{width:90px;height:90px;background:#DCFCE7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;margin:0 auto 1.5rem}
+.appt-ticket{background:#fff;border-radius:var(--rl);border:2px solid var(--brd);padding:2rem;margin:2rem 0;text-align:right}
+.ticket-top{background:var(--p);border-radius:var(--rs);padding:1rem 1.5rem;margin:-2rem -2rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.ticket-num{font-size:28px;font-weight:900;color:#fff;font-family:monospace;letter-spacing:3px}
+.ticket-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed var(--brd);font-size:14px}
+.ticket-row:last-child{border-bottom:none}
+.qr-box{width:100px;height:100px;background:var(--bg);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;margin:1.5rem auto;border:2px solid var(--brd)}
+.qr-box svg{width:80px;height:80px}
+
+/* ──────────────────────────────────────────────
+   PAGE 6 — PATIENT DASHBOARD
+────────────────────────────────────────────── */
+.dash-layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 68px)}
+.dash-sidebar{background:var(--white);border-left:1px solid var(--brd);padding:1.5rem 1rem}
+.dash-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);transition:.2s;margin-bottom:4px;border:none;background:none;width:100%;text-align:right}
+.dash-menu-item:hover,.dash-menu-item.active{background:var(--bg);color:var(--p)}
+.dash-menu-item .ico{font-size:18px}
+.dash-content{padding:2rem}
+.dash-section{display:none}.dash-section.active{display:block}
+
+.appt-card{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.25rem;display:flex;gap:14px;margin-bottom:.85rem;align-items:flex-start}
+.appt-date-box{min-width:64px;background:var(--bg);border-radius:var(--rs);padding:8px 6px;text-align:center}
+.appt-day{font-size:22px;font-weight:900;color:var(--p);line-height:1}
+.appt-month{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.appt-info{flex:1}
+.appt-doctor{font-size:15px;font-weight:800;color:var(--txt)}
+.appt-spec{font-size:13px;color:var(--p);font-weight:600;margin:2px 0}
+.appt-time{font-size:13px;color:var(--muted)}
+.appt-status{text-align:left}
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.sp-upcoming{background:#EFF6FF;color:#1e40af}
+.sp-done{background:#F0FDF4;color:#166534}
+.sp-cancelled{background:#FEF2F2;color:#991b1b}
+
+.notif-item{display:flex;gap:12px;padding:1rem 0;border-bottom:1px solid var(--brd);align-items:flex-start}
+.notif-item:last-child{border-bottom:none}
+.notif-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.nd-new{background:var(--p)}.nd-read{background:#CBD5E1}
+
+/* ──────────────────────────────────────────────
+   PAGE 7 — ADMIN DASHBOARD
+────────────────────────────────────────────── */
+.admin-layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 68px)}
+.admin-sidebar{background:var(--p);padding:1.5rem 1rem}
+.admin-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.7);transition:.2s;margin-bottom:4px;border:none;background:none;width:100%;text-align:right}
+.admin-menu-item:hover,.admin-menu-item.active{background:rgba(255,255,255,.15);color:#fff}
+.admin-content{padding:2rem;background:var(--surf)}
+.admin-section{display:none}.admin-section.active{display:block}
+
+.stat-card{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem;display:flex;align-items:center;gap:16px}
+.stat-icon{width:52px;height:52px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.stat-val{font-size:28px;font-weight:900;color:var(--txt)}
+.stat-lbl{font-size:13px;color:var(--muted);margin-top:2px}
+.stat-chg{font-size:12px;font-weight:700;margin-top:4px}
+
+.today-list{background:#fff;border-radius:var(--r);border:1px solid var(--brd);overflow:hidden}
+.today-header{background:var(--bg);padding:1rem 1.5rem;font-size:15px;font-weight:800;border-bottom:1px solid var(--brd)}
+.today-row{display:flex;align-items:center;gap:12px;padding:.9rem 1.5rem;border-bottom:1px solid var(--brd);transition:.2s}
+.today-row:last-child{border-bottom:none}
+.today-row:hover{background:var(--surf)}
+.today-time{font-size:14px;font-weight:800;color:var(--p);min-width:56px}
+.today-patient{flex:1}
+.today-name{font-size:14px;font-weight:700}
+.today-reason{font-size:12px;color:var(--muted)}
+.today-action{display:flex;gap:6px}
+
+.chart-wrap{background:#fff;border-radius:var(--r);border:1px solid var(--brd);padding:1.5rem}
+.chart-title{font-size:15px;font-weight:800;margin-bottom:1rem}
+
+/* ── MISC ── */
+.divider{height:1px;background:var(--brd);margin:1.5rem 0}
+.avatar-colors{--c0:#0B6E4F;--c1:#7C3AED;--c2:#B45309;--c3:#DC2626;--c4:#0284C7;--c5:#059669}
+.empty-state{text-align:center;padding:3rem;color:var(--muted)}
+.empty-state .icon{font-size:48px;margin-bottom:1rem;opacity:.4}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:var(--bg);font-size:13px;font-weight:600;color:var(--p);cursor:pointer;border:1.5px solid transparent;transition:.2s}
+.chip:hover,.chip.on{border-color:var(--p)}
+.chips-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:2rem;right:50%;transform:translateX(50%);background:var(--txt);color:#fff;padding:12px 24px;border-radius:var(--r);font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+
+/* ── SCROLL INDICATOR ── */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--surf)}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+
+footer{background:var(--p2);color:rgba(255,255,255,.7);padding:2.5rem 5%;text-align:center;font-size:14px}
+footer strong{color:#fff}
+
+/* LOGIN PAGE */
+.login-screen{
+position:fixed;inset:0;background:linear-gradient(135deg,#0B6E4F,#085C41);
+display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px
+}
+.login-card{
+background:#fff;border-radius:24px;padding:2rem;max-width:430px;width:100%;
+box-shadow:0 10px 40px rgba(0,0,0,.25)
+}
+.login-title{font-size:30px;font-weight:900;color:#0B6E4F;margin-bottom:10px}
+.login-sub{color:#5A7569;margin-bottom:20px;line-height:1.7}
+#hospital-map{height:500px;border-radius:20px;border:1px solid var(--brd)}
+.ai-chat{
+position:fixed;bottom:25px;left:25px;background:#F59E0B;color:#fff;
+width:65px;height:65px;border-radius:50%;display:flex;
+align-items:center;justify-content:center;font-size:28px;
+box-shadow:0 10px 25px rgba(0,0,0,.2);z-index:9999;cursor:pointer
+}
+.ai-box{
+position:fixed;bottom:100px;left:25px;width:320px;background:#fff;
+border-radius:18px;border:1px solid var(--brd);display:none;
+overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.2);z-index:9999
+}
+.ai-head{
+background:#0B6E4F;color:#fff;padding:14px;font-weight:800
+}
+.ai-messages{padding:15px;height:250px;overflow:auto;font-size:14px}
+.ai-input{display:flex;border-top:1px solid var(--brd)}
+.ai-input input{flex:1;border:none;padding:12px;outline:none}
+.ai-input button{background:#0B6E4F;color:#fff;border:none;padding:0 16px}
+@media(max-width:700px){
+.hero-title{font-size:34px}
+.search-box{flex-direction:column}
+.ai-box{width:90%;left:5%}
+}
+
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-title">تسجيل دخول المريض</div>
+    <div class="login-sub">
+      مرحباً بك في منصة ميعاد الصحية الخاصة بمشروع PIE. 
+      قم بإدخال معلوماتك للولوج إلى المنصة الطبية.
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">الاسم الكامل</label>
+      <input class="form-input" id="patientName" placeholder="مثال: يوسف العمراني">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">رقم البطاقة الوطنية CNI</label>
+      <input class="form-input" id="patientCNI" placeholder="AB123456" dir="ltr">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">رقم الهاتف</label>
+      <input class="form-input" id="patientPhone" placeholder="06XXXXXXXX" dir="ltr">
+    </div>
+
+    <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center"
+      onclick="loginPatient()">
+      دخول إلى المنصة
+    </button>
+
+    <div style="margin-top:18px;background:#F0FAF6;padding:14px;border-radius:14px;font-size:13px;line-height:1.8;color:#0B6E4F">
+      يمكن ربط هذه البيانات مباشرة مع Google Sheets عبر Google Apps Script لتخزين بيانات المرضى بشكل تلقائي.
+    </div>
+  </div>
+</div>
+
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════ -->
+<nav>
+  <div class="nav-logo" onclick="go('home')" style="cursor:pointer">
+    <svg viewBox="0 0 36 36" fill="none">
+      <rect width="36" height="36" rx="10" fill="#0B6E4F"/>
+      <path d="M18 8v20M8 18h20" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="18" cy="18" r="6" stroke="#F59E0B" stroke-width="2.5" fill="none"/>
+    </svg>
+    ميعاد
+  </div>
+  <div class="nav-links">
+    <button class="nav-link" onclick="go('search')">🔍 البحث</button>
+    <button class="nav-link" onclick="go('dashboard')">📋 مواعيدي <span class="nav-badge">3</span></button>
+    <button class="nav-link" onclick="go('admin')">🏥 لوحة المستشفى</button>
+    <button class="nav-btn" onclick="go('booking')">احجز موعداً</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     PAGE 1: HOME
+══════════════════════════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- HERO -->
+  <div id="hero">
+    <div class="hero-eyebrow">🇲🇦 خدمة صحية رقمية لكل مواطن مغربي</div>
+    <h1 class="hero-title">احجز موعدك الطبي<br>في <span>دقيقتين</span> — بلا طوابير</h1>
+    <p class="hero-sub">ميعاد يربطك بآلاف الأطباء والمستشفيات في المغرب — احجز، غيّر، أو ألغِ موعدك من هاتفك</p>
+
+    <div class="search-box">
+      <select style="flex:1.2;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
+        <option value="">🏙️ كل المدن</option>
+        <option>الرباط</option><option>الدار البيضاء</option><option>طنجة</option>
+        <option>فاس</option><option>مراكش</option><option>أكادير</option>
+        <option>مكناس</option><option>وجدة</option>
+      </select>
+      <div class="search-divider"></div>
+      <select style="flex:1.4;border:none;outline:none;padding:12px 16px;font-size:15px;font-family:'Tajawal',sans-serif;color:#0D1B12;background:transparent">
+        <option value="">🩺 كل التخصصات</option>
+        <option>طب عام</option><option>قلب وأوعية</option><option>أطفال</option>
+        <option>نساء وتوليد</option><option>عظام</option><option>عيون</option>
+        <option>أسنان</option><option>جلدية</option><option>أنف وأذن</option>
+        <option>مسالك بولية</option><option>أعصاب</option>
+      </select>
+      <div class="search-divider"></div>
+      <button class="btn btn-primary" style="border-radius:12px;white-space:nowrap" onclick="go('search')">
+        🔍 بحث
+      </button>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-n">+4,200</div><div class="hstat-l">طبيب مسجل</div></div>
+      <div class="hstat"><div class="hstat-n">+380</div><div class="hstat-l">مستشفى وعيادة</div></div>
+      <div class="hstat"><div class="hstat-n">+68,000</div><div class="hstat-l">موعد محجوز</div></div>
+      <div class="hstat"><div class="hstat-n">4.8 ⭐</div><div class="hstat-l">تقييم المرضى</div></div>
+    </div>
+  </div>
+
+  <!-- SPECIALTIES -->
+  <div style="padding:2.5rem 5% 0">
+    <div class="sec-hd"><div><div class="sec-title">التخصصات الطبية</div><div class="sec-sub">اختر التخصص المناسب لحالتك</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
+  </div>
+  <div class="spec-grid" style="padding-top:.5rem">
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🫀</div><div class="spec-name">قلب وأوعية</div><div class="spec-count">214 طبيب</div></div>
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">👶</div><div class="spec-name">أطفال</div><div class="spec-count">328 طبيب</div></div>
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🦷</div><div class="spec-name">أسنان</div><div class="spec-count">562 طبيب</div></div>
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">👁️</div><div class="spec-name">عيون</div><div class="spec-count">189 طبيب</div></div>
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🦴</div><div class="spec-name">عظام</div><div class="spec-count">241 طبيب</div></div>
+    <div class="spec-card" onclick="go('search')"><div class="spec-icon">🧠</div><div class="spec-name">أعصاب</div><div class="spec-count">97 طبيب</div></div>
+  </div>
+
+  <!-- FEATURED DOCTORS -->
+  <div class="section">
+    <div class="sec-hd"><div><div class="sec-title">أطباء متميزون</div><div class="sec-sub">الأعلى تقييماً هذا الشهر</div></div><button class="btn btn-ghost btn-sm" onclick="go('search')">عرض الكل ←</button></div>
+    <div class="grid3" id="featured-doctors"></div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div style="background:#fff;border-top:1px solid var(--brd)">
+    <div style="padding:3rem 5% 1rem"><div class="sec-title" style="text-align:center">كيف يعمل ميعاد؟</div><div class="sec-sub" style="text-align:center;margin-top:6px">4 خطوات بسيطة للحصول على موعدك</div></div>
+    <div class="how-grid">
+      <div class="how-step"><div class="how-num">1</div><div class="how-t">ابحث عن طبيب</div><div class="how-d">اكتب التخصص أو اسم الطبيب واختر مدينتك</div></div>
+      <div class="how-step"><div class="how-num">2</div><div class="how-t">اختر الموعد</div><div class="how-d">اختر اليوم والساعة المناسبة من المواعيد المتاحة</div></div>
+      <div class="how-step"><div class="how-num">3</div><div class="how-t">أكد بياناتك</div><div class="how-d">أدخل رقم هاتفك واستقبل SMS التأكيد فوراً</div></div>
+      <div class="how-step"><div class="how-num">4</div><div class="how-t">احضر في وقتك</div><div class="how-d">أحضر رقم موعدك وتُخدَّم مباشرة بلا انتظار</div></div>
+    </div>
+    <div style="text-align:center;padding-bottom:3rem"><button class="btn btn-primary btn-lg" onclick="go('booking')">احجز موعدك الآن ←</button></div>
+  </div>
+
+  <!-- ALERT SECTION -->
+  <div style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-top:1px solid #FCD34D;padding:1.5rem 5%;display:flex;align-items:center;gap:16px">
+    <div style="font-size:32px">🚨</div>
+    <div>
+      <div style="font-size:16px;font-weight:800;color:#92400e">خدمة الطوارئ — 24/7</div>
+      <div style="font-size:14px;color:#B45309;margin-top:3px">للحالات الطارئة اتصل مباشرة: <strong>15</strong> (SAMU) أو <strong>150</strong> (الحماية المدنية)</div>
+    </div>
+    <button class="btn btn-acc btn-sm" style="margin-right:auto" onclick="showToast('جاري فتح خريطة أقرب مستشفى طوارئ...')">📍 أقرب مستشفى طوارئ</button>
+  </div>
+
+  
+<div class="section">
+  <div class="sec-hd">
+    <div>
+      <div class="sec-title">🗺️ خريطة المستشفيات</div>
+      <div class="sec-sub">جميع المستشفيات والمراكز الصحية القريبة</div>
+    </div>
+  </div>
+  <div id="hospital-map"></div>
+</div>
+
+<div class="ai-chat" onclick="toggleAI()">🤖</div>
+
+<div class="ai-box" id="aiBox">
+  <div class="ai-head">مساعد MiAad AI</div>
+  <div class="ai-messages" id="aiMessages">
+    <div>👋 مرحباً، أنا مساعد ذكي لمساعدة المرضى والإجابة عن الأسئلة الطبية العامة.</div>
+  </div>
+  <div class="ai-input">
+    <input id="aiInput" placeholder="اكتب سؤالك هنا...">
+    <button onclick="sendAI()">إرسال</button>
+  </div>
+</div>
+
+<footer><p>© 2025 <strong>ميعاد</strong> — منصة حجز المواعيد الطبية في المغرب | مشروع PIE | تسيير المقاولات</p></footer>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 2: SEARCH RESULTS
+══════════════════════════════════════════ -->
+<div id="page-search" class="page">
+  <div class="results-header">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="font-size:16px;font-weight:800;flex:1">نتائج البحث</div>
+      <div class="search-box" style="max-width:500px;padding:5px;gap:6px">
+        <input type="text" placeholder="🔍 ابحث بالاسم أو التخصص..." style="flex:1;border:none;outline:none;padding:9px 12px;font-size:14px;font-family:'Tajawal',sans-serif;color:var(--txt)">
+        <select style="border:none;outline:none;padding:9px 10px;font-size:13px;font-family:'Tajawal',sans-serif;background:var(--bg);border-radius:6px">
+          <option>كل المدن</option><option>الرباط</option><option>الدار البيضاء</option><option>طنجة</option><option>فاس</option><option>مراكش</option>
+        </select>
+      </div>
+    </div>
+    <div class="chips-row" style="margin-top:.75rem;margin-bottom:0">
+      <div class="chip on">الكل</div>
+      <div class="chip" onclick="filterToggle(this)">متاح اليوم</div>
+      <div class="chip" onclick="filterToggle(this)">تقييم 4+</div>
+      <div class="chip" onclick="filterToggle(this)">عمومي (مجاني)</div>
+      <div class="chip" onclick="filterToggle(this)">قلب وأوعية</div>
+      <div class="chip" onclick="filterToggle(this)">أطفال</div>
+      <div class="chip" onclick="filterToggle(this)">عيون</div>
+      <div class="chip" onclick="filterToggle(this)">عظام</div>
+    </div>
+  </div>
+  <div class="results-layout">
+    <!-- FILTERS -->
+    <div class="filters-panel">
+      <div class="filter-title">⚙️ تصفية النتائج</div>
+      <div class="filter-group">
+        <div class="filter-label">نوع المرفق</div>
+        <label class="filter-option"><input type="checkbox" checked> مستشفى عمومي</label>
+        <label class="filter-option"><input type="checkbox" checked> عيادة خاصة</label>
+        <label class="filter-option"><input type="checkbox"> مركز صحي</label>
+      </div>
+      <div class="divider" style="margin:.5rem 0"></div>
+      <div class="filter-group">
+        <div class="filter-label">التوفر</div>
+        <label class="filter-option"><input type="radio" name="avail" checked> الكل</label>
+        <label class="filter-option"><input type="radio" name="avail"> متاح اليوم</label>
+        <label class="filter-option"><input type="radio" name="avail"> متاح هذا الأسبوع</label>
+      </div>
+      <div class="divider" style="margin:.5rem 0"></div>
+      <div class="filter-group">
+        <div class="filter-label">التقييم</div>
+        <label class="filter-option"><input type="radio" name="rating" checked> الكل</label>
+        <label class="filter-option"><input type="radio" name="rating"> 4 نجوم فأكثر</label>
+        <label class="filter-option"><input type="radio" name="rating"> 4.5 نجوم فأكثر</label>
+      </div>
+      <div class="divider" style="margin:.5rem 0"></div>
+      <div class="filter-group">
+        <div class="filter-label">المدينة</div>
+        <label class="filter-option"><input type="checkbox" checked> الرباط</label>
+        <label class="filter-option"><input type="checkbox" checked> الدار البيضاء</label>
+        <label class="filter-option"><input type="checkbox"> طنجة</label>
+        <label class="filter-option"><input type="checkbox"> فاس</label>
+        <label class="filter-option"><input type="checkbox"> مراكش</label>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="showToast('تم تطبيق الفلاتر')">تطبيق الفلاتر</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div>
+      <div class="results-top">
+        <div class="results-count" id="results-count">عرض <strong>12</strong> نتيجة</div>
+        <select style="padding:8px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:14px;font-family:'Tajawal',sans-serif">
+          <option>ترتيب حسب: التقييم</option>
+          <option>أقرب موعد</option>
+          <option>الأقل سعراً</option>
+        </select>
+      </div>
+      <div class="grid2" id="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 3: DOCTOR PROFILE
+══════════════════════════════════════════ -->
+<div id="page-doctor" class="page">
+  <div id="doc-profile-content"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 4: BOOKING FLOW
+══════════════════════════════════════════ -->
+<div id="page-booking" class="page">
+  <div style="background:var(--bg);border-bottom:1px solid var(--brd);padding:1rem 5%;font-size:14px;color:var(--muted)">
+    <span onclick="go('home')" style="cursor:pointer">🏠 الرئيسية</span> ← <span style="color:var(--p);font-weight:700">حجز موعد طبي</span>
+  </div>
+  <div class="booking-wrap">
+    <div class="booking-steps" id="booking-steps">
+      <div class="bstep active" id="bs1"><div class="bstep-num">1</div><div class="bstep-label">التخصص</div></div>
+      <div class="bstep" id="bs2"><div class="bstep-num">2</div><div class="bstep-label">الطبيب</div></div>
+      <div class="bstep" id="bs3"><div class="bstep-num">3</div><div class="bstep-label">الموعد</div></div>
+      <div class="bstep" id="bs4"><div class="bstep-num">4</div><div class="bstep-label">التأكيد</div></div>
+    </div>
+    <div id="booking-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 5: SUCCESS
+══════════════════════════════════════════ -->
+<div id="page-success" class="page">
+  <div class="success-wrap">
+    <div class="success-icon">✅</div>
+    <h2 style="font-size:26px;font-weight:900;margin-bottom:8px">تم تأكيد موعدك!</h2>
+    <p style="color:var(--muted);font-size:15px">تم إرسال SMS تأكيد على رقم هاتفك</p>
+
+    <div class="appt-ticket">
+      <div class="ticket-top">
+        <div><div style="color:rgba(255,255,255,.7);font-size:12px;margin-bottom:4px">رقم الموعد</div><div class="ticket-num">#MA-7842</div></div>
+        <div style="text-align:left"><div style="color:rgba(255,255,255,.7);font-size:12px;margin-bottom:4px">الحالة</div><span class="tag tag-g" style="background:rgba(255,255,255,.2);color:#fff">✅ مؤكد</span></div>
+      </div>
+      <div class="ticket-row"><span>👨‍⚕️ الطبيب</span><strong>د. محمد بنعلي</strong></div>
+      <div class="ticket-row"><span>🏥 المستشفى</span><strong>المستشفى الجامعي ابن سينا</strong></div>
+      <div class="ticket-row"><span>📅 التاريخ</span><strong id="confirmed-date">الثلاثاء 24 يونيو 2025</strong></div>
+      <div class="ticket-row"><span>🕙 الوقت</span><strong id="confirmed-time">10:30 صباحاً</strong></div>
+      <div class="ticket-row"><span>📍 الغرفة</span><strong>عيادة رقم 14 — الطابق 2</strong></div>
+      <div class="ticket-row"><span>📋 الوثائق المطلوبة</span><strong>بطاقة RAMED / هوية</strong></div>
+    </div>
+
+    <div class="qr-box">
+      <svg viewBox="0 0 80 80" fill="none">
+        <rect x="5" y="5" width="28" height="28" rx="2" fill="var(--p)" opacity=".9"/>
+        <rect x="11" y="11" width="16" height="16" rx="1" fill="white"/>
+        <rect x="14" y="14" width="10" height="10" rx="0" fill="var(--p)"/>
+        <rect x="47" y="5" width="28" height="28" rx="2" fill="var(--p)" opacity=".9"/>
+        <rect x="53" y="11" width="16" height="16" rx="1" fill="white"/>
+        <rect x="56" y="14" width="10" height="10" rx="0" fill="var(--p)"/>
+        <rect x="5" y="47" width="28" height="28" rx="2" fill="var(--p)" opacity=".9"/>
+        <rect x="11" y="53" width="16" height="16" rx="1" fill="white"/>
+        <rect x="14" y="56" width="10" height="10" rx="0" fill="var(--p)"/>
+        <rect x="40" y="40" width="8" height="8" fill="var(--p)" opacity=".7"/>
+        <rect x="52" y="40" width="8" height="8" fill="var(--p)" opacity=".7"/>
+        <rect x="64" y="40" width="8" height="8" fill="var(--p)" opacity=".7"/>
+        <rect x="40" y="52" width="8" height="8" fill="var(--p)" opacity=".5"/>
+        <rect x="52" y="52" width="8" height="8" fill="var(--p)" opacity=".9"/>
+        <rect x="64" y="64" width="8" height="8" fill="var(--p)" opacity=".7"/>
+      </svg>
+    </div>
+    <p style="font-size:12px;color:var(--muted)">أرِ هذا الرمز عند وصولك للمستشفى</p>
+
+    <div style="display:flex;gap:10px;margin-top:2rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="go('dashboard')">📋 عرض مواعيدي</button>
+      <button class="btn btn-outline" onclick="showToast('تمت المشاركة عبر واتساب ✅')">📲 مشاركة واتساب</button>
+      <button class="btn btn-ghost" onclick="go('home')">🏠 الرئيسية</button>
+    </div>
+    <div style="margin-top:1.5rem;background:var(--bg);border-radius:var(--r);padding:1.2rem;text-align:right">
+      <div style="font-size:14px;font-weight:800;margin-bottom:6px">📱 تذكير SMS تلقائي</div>
+      <div style="font-size:13px;color:var(--muted)">ستتلقى تذكيراً قبل 24 ساعة وقبل ساعتين من موعدك</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 6: PATIENT DASHBOARD
+══════════════════════════════════════════ -->
+<div id="page-dashboard" class="page">
+  <div class="dash-layout">
+    <div class="dash-sidebar">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.75rem;padding:0 4px">
+        <div class="doc-avatar" style="width:50px;height:50px;font-size:20px;background:var(--p)">ي</div>
+        <div><div style="font-size:15px;font-weight:800">يوسف العمراني</div><div style="font-size:12px;color:var(--muted)">مريض مسجل</div></div>
+      </div>
+      <button class="dash-menu-item active" onclick="dashMenu(this,'d-upcoming')"><span class="ico">📅</span>المواعيد القادمة <span class="nav-badge">2</span></button>
+      <button class="dash-menu-item" onclick="dashMenu(this,'d-history')"><span class="ico">🕐</span>السجل الطبي</button>
+      <button class="dash-menu-item" onclick="dashMenu(this,'d-profile')"><span class="ico">👤</span>ملفي الشخصي</button>
+      <button class="dash-menu-item" onclick="dashMenu(this,'d-notifs')"><span class="ico">🔔</span>الإشعارات <span class="nav-badge" style="background:var(--red)">1</span></button>
+      <button class="dash-menu-item" onclick="dashMenu(this,'d-favorites')"><span class="ico">⭐</span>أطبائي المفضلون</button>
+      <div class="divider"></div>
+      <button class="dash-menu-item" onclick="go('booking')"><span class="ico">➕</span>حجز موعد جديد</button>
+    </div>
+    <div class="dash-content">
+
+      <!-- UPCOMING -->
+      <div id="d-upcoming" class="dash-section active">
+        <div class="sec-hd"><div><div class="sec-title">المواعيد القادمة</div><div class="sec-sub">لديك 2 موعد قادم</div></div><button class="btn btn-primary btn-sm" onclick="go('booking')">+ حجز جديد</button></div>
+        <div id="upcoming-list"></div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="d-history" class="dash-section">
+        <div class="sec-hd"><div class="sec-title">السجل الطبي</div></div>
+        <div id="history-list"></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div id="d-profile" class="dash-section">
+        <div class="sec-title" style="margin-bottom:1.5rem">ملفي الشخصي</div>
+        <div class="card" style="max-width:600px">
+          <div class="form-group"><label class="form-label">الاسم الكامل</label><input class="form-input" value="يوسف العمراني"></div>
+          <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-input" value="0612345678" dir="ltr"></div>
+          <div class="form-group"><label class="form-label">رقم CIN</label><input class="form-input" value="AB123456" dir="ltr"></div>
+          <div class="grid2">
+            <div class="form-group"><label class="form-label">تاريخ الميلاد</label><input class="form-input" type="date" value="1995-03-15"></div>
+            <div class="form-group"><label class="form-label">فصيلة الدم</label><select class="form-input form-select"><option>A+</option><option>B+</option><option selected>O+</option><option>AB+</option></select></div>
+          </div>
+          <div class="form-group"><label class="form-label">أمراض مزمنة (إن وجدت)</label><input class="form-input" placeholder="مثال: سكري، ضغط..."></div>
+          <div class="form-group"><label class="form-label">حساسية من أدوية</label><input class="form-input" placeholder="مثال: Penicillin..."></div>
+          <button class="btn btn-primary" onclick="showToast('تم حفظ البيانات ✅')">💾 حفظ التغييرات</button>
+        </div>
+      </div>
+
+      <!-- NOTIFS -->
+      <div id="d-notifs" class="dash-section">
+        <div class="sec-title" style="margin-bottom:1.5rem">الإشعارات</div>
+        <div class="card">
+          <div class="notif-item"><div class="notif-dot nd-new"></div><div><div style="font-size:14px;font-weight:700">تذكير بموعدك غداً</div><div style="font-size:13px;color:var(--muted);margin-top:3px">موعدك مع د. محمد بنعلي غداً الثلاثاء الساعة 10:30 — لا تنسَ بطاقة RAMED</div><div style="font-size:11px;color:var(--muted);margin-top:5px">منذ ساعة</div></div></div>
+          <div class="notif-item"><div class="notif-dot nd-read"></div><div><div style="font-size:14px;font-weight:700">تم تأكيد موعدك</div><div style="font-size:13px;color:var(--muted);margin-top:3px">تم تأكيد موعدك رقم #MA-7842 مع المستشفى الجامعي ابن سينا</div><div style="font-size:11px;color:var(--muted);margin-top:5px">أمس</div></div></div>
+          <div class="notif-item"><div class="notif-dot nd-read"></div><div><div style="font-size:14px;font-weight:700">تقييم زيارتك السابقة</div><div style="font-size:13px;color:var(--muted);margin-top:3px">كيف كانت تجربتك مع د. فاطمة الزهراء؟ قيّمها الآن</div><div style="font-size:11px;color:var(--muted);margin-top:5px">3 أيام</div></div></div>
+        </div>
+      </div>
+
+      <!-- FAVORITES -->
+      <div id="d-favorites" class="dash-section">
+        <div class="sec-hd"><div class="sec-title">أطبائي المفضلون</div></div>
+        <div class="grid2" id="favorites-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PAGE 7: ADMIN DASHBOARD
+══════════════════════════════════════════ -->
+<div id="page-admin" class="page">
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <div style="color:#fff;font-size:15px;font-weight:800;margin-bottom:4px">🏥 ابن سينا</div>
+      <div style="color:rgba(255,255,255,.6);font-size:12px;margin-bottom:1.75rem">لوحة التحكم — الرباط</div>
+      <button class="admin-menu-item active" onclick="adminMenu(this,'a-today')"><span>📅</span> جدول اليوم</button>
+      <button class="admin-menu-item" onclick="adminMenu(this,'a-stats')"><span>📊</span> الإحصائيات</button>
+      <button class="admin-menu-item" onclick="adminMenu(this,'a-doctors')"><span>👨‍⚕️</span> إدارة الأطباء</button>
+      <button class="admin-menu-item" onclick="adminMenu(this,'a-appointments')"><span>📋</span> كل المواعيد</button>
+      <button class="admin-menu-item" onclick="adminMenu(this,'a-settings')"><span>⚙️</span> الإعدادات</button>
+      <div style="border-top:1px solid rgba(255,255,255,.15);margin:1rem 0;padding-top:1rem">
+        <button class="admin-menu-item" onclick="go('home')"><span>🏠</span> الموقع الرئيسي</button>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <!-- TODAY -->
+      <div id="a-today" class="admin-section active">
+        <div class="sec-hd">
+          <div><div class="sec-title">📅 جدول اليوم — الثلاثاء 24 يونيو</div><div class="sec-sub">المستشفى الجامعي ابن سينا — الرباط</div></div>
+          <button class="btn btn-danger btn-sm" onclick="showToast('تم إرسال SMS لكل المرضى ⚠️')">⚠️ إغلاق طارئ</button>
+        </div>
+        <div class="grid4" style="margin-bottom:1.5rem">
+          <div class="stat-card"><div class="stat-icon" style="background:#E8F5F0">📅</div><div><div class="stat-val">28</div><div class="stat-lbl">موعد اليوم</div><div class="stat-chg" style="color:var(--grn)">↑ +4 من الأمس</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#DCFCE7">✅</div><div><div class="stat-val">12</div><div class="stat-lbl">أُنجز</div><div class="stat-chg" style="color:var(--muted)">حتى الآن</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#FEF3C7">⏳</div><div><div class="stat-val">11</div><div class="stat-lbl">ينتظر</div><div class="stat-chg" style="color:var(--acc2)">الطابور الحالي</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#FEE2E2">❌</div><div><div class="stat-val">5</div><div class="stat-lbl">ملغى</div><div class="stat-chg" style="color:var(--red)">17.8% إلغاء</div></div></div>
+        </div>
+        <div class="today-list">
+          <div class="today-header">قائمة المواعيد — جميع الأطباء</div>
+          <div id="admin-today-list"></div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div id="a-stats" class="admin-section">
+        <div class="sec-title" style="margin-bottom:1.5rem">📊 الإحصائيات والتقارير</div>
+        <div class="grid4" style="margin-bottom:1.5rem">
+          <div class="stat-card"><div class="stat-icon" style="background:#E8F5F0">📅</div><div><div class="stat-val">842</div><div class="stat-lbl">مواعيد الشهر</div><div class="stat-chg" style="color:var(--grn)">↑ 12% من الشهر الماضي</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#DBEAFE">👥</div><div><div class="stat-val">634</div><div class="stat-lbl">مريض مختلف</div><div class="stat-chg" style="color:var(--grn)">↑ 8% جديد</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#FEF3C7">⭐</div><div><div class="stat-val">4.7</div><div class="stat-lbl">متوسط التقييم</div><div class="stat-chg" style="color:var(--grn)">↑ من 4.5</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#DCFCE7">✅</div><div><div class="stat-val">87%</div><div class="stat-lbl">نسبة الحضور</div><div class="stat-chg" style="color:var(--grn)">↑ +5% هذا الشهر</div></div></div>
+        </div>
+        <div class="grid2">
+          <div class="chart-wrap"><div class="chart-title">المواعيد الأسبوعية</div><canvas id="chart-weekly" height="200"></canvas></div>
+          <div class="chart-wrap"><div class="chart-title">أكثر التخصصات طلباً</div><canvas id="chart-specs" height="200"></canvas></div>
+        </div>
+        <div class="chart-wrap" style="margin-top:1.25rem"><div class="chart-title">نشاط الحجز — آخر 30 يوم</div><canvas id="chart-monthly" height="120"></canvas></div>
+      </div>
+
+      <!-- DOCTORS -->
+      <div id="a-doctors" class="admin-section">
+        <div class="sec-hd"><div class="sec-title">👨‍⚕️ إدارة الأطباء</div><button class="btn btn-primary btn-sm" onclick="showToast('فتح نموذج إضافة طبيب...')">+ إضافة طبيب</button></div>
+        <div id="admin-doctors-list"></div>
+      </div>
+
+      <!-- APPOINTMENTS -->
+      <div id="a-appointments" class="admin-section">
+        <div class="sec-hd"><div class="sec-title">📋 كل المواعيد</div>
+          <div style="display:flex;gap:8px">
+            <input type="date" class="form-input" style="width:auto;padding:7px 12px;font-size:13px">
+            <select class="form-input form-select" style="width:auto;padding:7px 28px 7px 12px;font-size:13px"><option>كل الأطباء</option><option>د. محمد بنعلي</option><option>د. فاطمة الزهراء</option></select>
+          </div>
+        </div>
+        <div class="today-list" id="all-appointments"></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="a-settings" class="admin-section">
+        <div class="sec-title" style="margin-bottom:1.5rem">⚙️ إعدادات المستشفى</div>
+        <div class="card" style="max-width:600px">
+          <div class="form-group"><label class="form-label">اسم المستشفى</label><input class="form-input" value="المستشفى الجامعي ابن سينا"></div>
+          <div class="form-group"><label class="form-label">المدينة</label><select class="form-input form-select"><option selected>الرباط</option><option>الدار البيضاء</option></select></div>
+          <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-input" value="0537671117" dir="ltr"></div>
+          <div class="form-group"><label class="form-label">ساعات العمل</label><div class="grid2" style="gap:8px"><input class="form-input" value="08:00" type="time"><input class="form-input" value="17:00" type="time"></div></div>
+          <div class="form-group"><label class="form-label" style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--p)"> خدمة طوارئ 24/7</label></div>
+          <button class="btn btn-primary" onclick="showToast('تم حفظ الإعدادات ✅')">💾 حفظ</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   DATA
+══════════════════════════════════════════ */
+const COLORS=['#0B6E4F','#7C3AED','#B45309','#DC2626','#0284C7','#059669','#C026D3','#0891B2'];
+const SPECS=[
+  {icon:'🫀',name:'قلب وأوعية',count:214},{icon:'👶',name:'أطفال',count:328},
+  {icon:'🦷',name:'أسنان',count:562},{icon:'👁️',name:'عيون',count:189},
+  {icon:'🦴',name:'عظام',count:241},{icon:'🧠',name:'أعصاب',count:97},
+  {icon:'🤰',name:'نساء وتوليد',count:183},{icon:'🌡️',name:'طب عام',count:891},
+  {icon:'🧬',name:'جلدية',count:124},{icon:'👂',name:'أنف وأذن',count:98},
+  {icon:'🫁',name:'رئة وتنفس',count:76},{icon:'💊',name:'مسالك بولية',count:87}
+];
+const DOCTORS=[
+  {id:1,name:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الجامعي ابن سينا',city:'الرباط',rating:4.9,reviews:312,price:200,avail:true,color:'#0B6E4F',init:'م',wait:'15 دق',about:'متخصص في أمراض القلب والأوعية الدموية، أكثر من 15 سنة خبرة. حاصل على دكتوراه من جامعة محمد الخامس والزمالة الأوروبية في أمراض القلب.',docs:['بطاقة RAMED أو تأمين صحي','نتائج تخطيط القلب إن وجدت','قائمة الأدوية الحالية']},
+  {id:2,name:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'عيادة الأمل',city:'الدار البيضاء',rating:4.8,reviews:489,price:150,avail:true,color:'#C026D3',init:'ف',wait:'20 دق',about:'طبيبة متخصصة في طب الأطفال وحديثي الولادة، خبرة 12 سنة. متخصصة في أمراض الجهاز التنفسي عند الأطفال.',docs:['دفتر صحة الطفل','بطاقة التعريف الوطنية للولي']},
+  {id:3,name:'د. يوسف المنصوري',spec:'عيون',hosp:'مركز صحي طنجة المدينة',city:'طنجة',rating:4.7,reviews:201,price:180,avail:false,color:'#0284C7',init:'ي',wait:'35 دق',about:'متخصص في جراحة العيون بالليزر وأمراض الشبكية. أجرى أكثر من 2000 عملية جراحية.',docs:['وصفة طبية من طبيب عام','نتائج قياس النظر السابقة']},
+  {id:4,name:'د. سلمى بنسودة',spec:'نساء وتوليد',hosp:'مستشفى الشيخ زايد',city:'الرباط',rating:4.9,reviews:567,price:250,avail:true,color:'#D4547E',init:'س',wait:'25 دق',about:'متخصصة في توليد النساء وجراحة المنظار. خبرة 18 سنة وعضو في الجمعية المغربية لأطباء النساء.',docs:['آخر نتائج تحاليل','بطاقة RAMED أو تأمين']},
+  {id:5,name:'د. كريم الوفا',spec:'عظام',hosp:'المستشفى الجامعي ابن رشد',city:'الدار البيضاء',rating:4.6,reviews:178,price:220,avail:true,color:'#B45309',init:'ك',wait:'40 دق',about:'متخصص في جراحة العظام والمفاصل، وخاصة إصابات الرياضيين وجراحة استبدال الركبة.',docs:['صور الأشعة السينية','تقرير الطبيب المحيل']},
+  {id:6,name:'د. أمينة بوشنتوف',
+  {id:7,name:'د. نادر الطاهري',spec:'طب عام',hosp:'المستشفى الإقليمي سانية الرمل',city:'تطوان',rating:4.7,reviews:144,price:120,avail:true,color:'#2563EB',init:'ن',wait:'12 دق',about:'طبيب عام متخصص في الفحوصات الشاملة والطب الوقائي.',docs:['بطاقة التعريف الوطنية']},
+  {id:8,name:'د. هاجر العلمي',spec:'أسنان',hosp:'مركز تطوان لطب الأسنان',city:'تطوان',rating:4.8,reviews:301,price:160,avail:true,color:'#DC2626',init:'ه',wait:'18 دق',about:'متخصصة في تجميل الأسنان وتقويمها.',docs:['صور الأسنان إن وجدت']},
+  {id:9,name:'د. إلياس الحسني',spec:'أعصاب',hosp:'مستشفى السويسي',city:'الرباط',rating:4.9,reviews:210,price:240,avail:true,color:'#7C3AED',init:'إ',wait:'22 دق',about:'متخصص في أمراض الجهاز العصبي والصداع المزمن.',docs:['نتائج الرنين المغناطيسي']},
+  {id:10,name:'د. مريم الكتاني',spec:'جلدية',hosp:'مصحة الرباط الحديثة',city:'الرباط',rating:4.8,reviews:190,price:180,avail:true,color:'#059669',init:'م',wait:'16 دق',about:'طبيبة أمراض جلدية وعلاج الليزر.',docs:['تحاليل جلدية']},
+  {id:11,name:'د. عثمان المرابط',spec:'قلب وأوعية',hosp:'مستشفى الحسن الثاني',city:'تطوان',rating:4.9,reviews:278,price:230,avail:true,color:'#0B6E4F',init:'ع',wait:'20 دق',about:'أخصائي أمراض القلب والقسطرة.',docs:['تخطيط القلب']},
+  {id:12,name:'د. ليلى الزهيري',spec:'أطفال',hosp:'مستشفى الأطفال الرباط',city:'الرباط',rating:4.9,reviews:330,price:170,avail:true,color:'#D946EF',init:'ل',wait:'14 دق',about:'طبيبة أطفال وحديثي الولادة.',docs:['دفتر صحة الطفل']},
+  ,spec:'جلدية',hosp:'عيادة الأمل الخضراء',city:'فاس',rating:4.8,reviews:234,price:170,avail:true,color:'#059669',init:'أ',wait:'10 دق',about:'متخصصة في أمراض الجلد والشعر والأظافر، وعلاج حب الشباب والأكزيما.',docs:['صور للحالة الجلدية','قائمة المنتجات المستخدمة حالياً']},
+];
+const TODAY_APPTS=[
+  {time:'08:30',name:'عبد الله الراشدي',reason:'فحص دوري — قلب',status:'done',doctor:'د. محمد بنعلي'},
+  {time:'09:00',name:'خديجة الزياني',reason:'ألم في الصدر',status:'done',doctor:'د. محمد بنعلي'},
+  {time:'09:30',name:'حسن المغاري',reason:'نتائج تحاليل',status:'done',doctor:'د. فاطمة الإدريسي'},
+  {time:'10:00',name:'مريم بنحمدة',reason:'متابعة الحمل',status:'arrived',doctor:'د. سلمى بنسودة'},
+  {time:'10:30',name:'يوسف العمراني',reason:'كشف قلب',status:'waiting',doctor:'د. محمد بنعلي'},
+  {time:'11:00',name:'سناء الطالبي',reason:'ألم في الركبة',status:'waiting',doctor:'د. كريم الوفا'},
+  {time:'11:30',name:'أحمد بنعيسى',reason:'فحص نظر',status:'waiting',doctor:'د. يوسف المنصوري'},
+  {time:'14:00',name:'فاطمة أوزين',reason:'حساسية جلدية',status:'upcoming',doctor:'د. أمينة بوشنتوف'},
+  {time:'14:30',name:'مصطفى لمريني',reason:'فحص عام',status:'upcoming',doctor:'د. فاطمة الإدريسي'},
+  {time:'15:00',name:'رشيدة الحجي',reason:'ارتفاع ضغط الدم',status:'upcoming',doctor:'د. محمد بنعلي'},
+];
+const PATIENT_APPTS=[
+  {id:'MA-7842',doctor:'د. محمد بنعلي',spec:'قلب وأوعية',hosp:'المستشفى الجامعي ابن سينا',date:'2025-06-24',day:24,month:'يونيو',time:'10:30 ص',status:'upcoming'},
+  {id:'MA-7801',doctor:'د. كريم الوفا',spec:'عظام',hosp:'المستشفى الجامعي ابن رشد',date:'2025-07-03',day:3,month:'يوليوز',time:'09:00 ص',status:'upcoming'},
+  {id:'MA-7654',doctor:'د. فاطمة الزهراء الإدريسي',spec:'أطفال',hosp:'عيادة الأمل',date:'2025-06-10',day:10,month:'يونيو',time:'11:00 ص',status:'done'},
+  {id:'MA-7420',doctor:'د. أمينة بوشنتوف',spec:'جلدية',hosp:'عيادة الأمل الخضراء',date:'2025-05-22',day:22,month:'ماي',time:'14:00 ص',status:'done'},
+  {id:'MA-7391',doctor:'د. يوسف المنصوري',spec:'عيون',hosp:'مركز صحي طنجة',date:'2025-05-01',day:1,month:'ماي',time:'10:00 ص',status:'cancelled'},
+];
+
+let bookingStep=1, selectedSpec='', selectedDoctor=null, selectedDate='', selectedTime='';
+
+/* ══════════════════════════════════════════
+   ROUTER
+══════════════════════════════════════════ */
+function go(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  window.scrollTo(0,0);
+  if(page==='search')renderSearch();
+  if(page==='dashboard')renderDashboard();
+  if(page==='admin')renderAdmin();
+  if(page==='booking'){bookingStep=1;renderBooking();}
+  if(page==='home')renderHome();
+}
+
+/* ══════════════════════════════════════════
+   RENDER HOME
+══════════════════════════════════════════ */
+function renderHome(){
+  const el=document.getElementById('featured-doctors');
+  if(!el||el.dataset.rendered)return;
+  el.dataset.rendered='1';
+  el.innerHTML=DOCTORS.slice(0,3).map(d=>docCard(d)).join('');
+}
+
+function docCard(d){
+  const stars='★'.repeat(Math.floor(d.rating))+'☆'.repeat(5-Math.floor(d.rating));
+  return`<div class="doc-card" onclick="openDoctor(${d.id})">
+    <div class="doc-card-top">
+      <div class="doc-avatar" style="background:${d.color}">${d.init}</div>
+      <div>
+        <div class="doc-name">${d.name}</div>
+        <div class="doc-spec">${d.spec}</div>
+        <div class="doc-hosp">🏥 ${d.hosp} — ${d.city}</div>
+      </div>
+    </div>
+    <div class="doc-card-body">
+      <div class="doc-meta">
+        <span><span class="stars">${stars}</span> <span class="star-score">${d.rating}</span></span>
+        <span>💬 ${d.reviews} تقييم</span>
+        <span>⏱️ ${d.wait}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="avail-badge ${d.avail?'avail-y':'avail-n'}">${d.avail?'🟢 متاح اليوم':'🔴 غير متاح'}</span>
+        <span style="font-size:15px;font-weight:800;color:var(--p)">${d.price} درهم</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════
+   RENDER SEARCH
+══════════════════════════════════════════ */
+function renderSearch(){
+  document.getElementById('search-results').innerHTML=DOCTORS.map(d=>docCard(d)).join('');
+}
+function filterToggle(el){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+
+/* ══════════════════════════════════════════
+   DOCTOR PROFILE
+══════════════════════════════════════════ */
+function openDoctor(id){
+  const d=DOCTORS.find(x=>x.id===id);
+  if(!d)return;
+  selectedDoctor=d;
+  const days=['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+  const months=['يناير','فبراير','مارس','أبريل','ماي','يونيو','يوليوز','غشت','شتنبر','أكتوبر','نونبر','دجنبر'];
+  const today=new Date();
+  const dayCards=Array.from({length:7},(_,i)=>{
+    const d2=new Date(today);d2.setDate(today.getDate()+i);
+    const off=d2.getDay()===5;
+    return`<div class="sch-day ${off?'off':i===1?'on':''}" onclick="${off?'':'selectDay(this)'}">
+      <div class="sch-day-name">${days[d2.getDay()]}</div>
+      <div class="sch-day-num">${d2.getDate()}</div>
+    </div>`;
+  }).join('');
+  const times=['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30'];
+  const busy=[2,5,8];
+  const timeSlots=times.map((t,i)=>`<div class="time-slot ${busy.includes(i)?'busy':''}" onclick="${busy.includes(i)?'':`selectTime(this,'${t}')`}">${t}</div>`).join('');
+  const stars='★'.repeat(Math.floor(d.rating))+'☆'.repeat(5-Math.floor(d.rating));
+  const reviews=[
+    {name:'عبد الله ر.',date:'منذ أسبوع',text:'طبيب ممتاز، شرح لي كل شيء بالتفصيل. الانتظار كان قصيراً بفضل ميعاد',rating:5},
+    {name:'خديجة م.',date:'منذ أسبوعين',text:'جداً متعاون ومتفهم. نصحني بالعلاج المناسب والحمد لله تحسنت',rating:5},
+    {name:'أحمد ب.',date:'منذ شهر',text:'كفاءة عالية، لكن الانتظار كان شوية طويل',rating:4},
+  ];
+  document.getElementById('doc-profile-content').innerHTML=`
+  <div style="background:var(--white);border-bottom:1px solid var(--brd);padding:2rem 5%">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">
+      <span onclick="go('home')" style="cursor:pointer">🏠 الرئيسية</span> ←
+      <span onclick="go('search')" style="cursor:pointer">البحث</span> ←
+      <span style="color:var(--p);font-weight:700">${d.name}</span>
+    </div>
+    <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap">
+      <div class="prof-avatar" style="background:${d.color}">${d.init}</div>
+      <div style="flex:1">
+        <h1 style="font-size:26px;font-weight:900">${d.name}</h1>
+        <div style="font-size:16px;color:var(--p);font-weight:700;margin:6px 0">${d.spec}</div>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:12px">🏥 ${d.hosp} — ${d.city}</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px">
+          <span><span class="stars">${stars}</span> <strong>${d.rating}</strong> (${d.reviews} تقييم)</span>
+          <span class="avail-badge ${d.avail?'avail-y':'avail-n'}">${d.avail?'🟢 متاح اليوم':'🔴 غير متاح'}</span>
+          <span>⏱️ وقت الانتظار: <strong>${d.wait}</strong></span>
+          <span>💰 الكشف: <strong>${d.price} درهم</strong></span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="startBookingWithDoctor(${d.id})">📅 احجز موعد</button>
+    </div>
+  </div>
+  <div class="profile-layout">
+    <div>
+      <div class="profile-card" style="margin-bottom:1.25rem">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:1rem">👨‍⚕️ نبذة عن الطبيب</h3>
+        <p style="font-size:14px;color:var(--muted);line-height:1.75">${d.about}</p>
+        <div class="divider"></div>
+        <div class="info-row"><span class="info-icon">🎓</span><span class="info-label">التخصص</span><span class="info-val">${d.spec}</span></div>
+        <div class="info-row"><span class="info-icon">🏥</span><span class="info-label">مكان العمل</span><span class="info-val">${d.hosp}</span></div>
+        <div class="info-row"><span class="info-icon">📍</span><span class="info-label">المدينة</span><span class="info-val">${d.city}</span></div>
+        <div class="info-row"><span class="info-icon">⏱️</span><span class="info-label">مدة الكشف</span><span class="info-val">30 دقيقة</span></div>
+        <div class="info-row"><span class="info-icon">💰</span><span class="info-label">سعر الكشف</span><span class="info-val">${d.price} درهم</span></div>
+        <div class="info-row"><span class="info-icon">🗣️</span><span class="info-label">اللغات</span><span class="info-val">العربية — الفرنسية — الدارجة</span></div>
+      </div>
+      <div class="profile-card" style="margin-bottom:1.25rem">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:.75rem">📋 الوثائق المطلوبة</h3>
+        ${d.docs.map(doc=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--brd);font-size:14px"><span style="color:var(--grn);font-weight:700">✓</span>${doc}</div>`).join('')}
+      </div>
+      <div class="profile-card">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:.75rem">⭐ تقييمات المرضى (${d.reviews})</h3>
+        ${reviews.map(r=>`
+        <div class="review-item">
+          <div class="reviewer">
+            <div class="rev-avatar">${r.name[0]}</div>
+            <div>
+              <div style="font-size:14px;font-weight:700">${r.name}</div>
+              <div style="font-size:11px;color:var(--muted)">${r.date}</div>
+            </div>
+            <div style="margin-right:auto;color:#F59E0B">${'★'.repeat(r.rating)}</div>
+          </div>
+          <p style="font-size:13px;color:var(--muted)">${r.text}</p>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="profile-card" style="position:sticky;top:88px">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:1rem">📅 اختر موعدك</h3>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:.5rem">
+          <span>يونيو 2025</span><span>الأسبوع القادم</span>
+        </div>
+        <div class="schedule-grid">${dayCards}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--txt);margin:1rem 0 .5rem">الأوقات المتاحة</div>
+        <div class="time-slots">${timeSlots}</div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1.25rem" onclick="startBookingWithDoctor(${d.id})">تأكيد الموعد ←</button>
+        <div style="text-align:center;margin-top:.75rem;font-size:12px;color:var(--muted)">📱 ستتلقى SMS تأكيد فوراً</div>
+      </div>
+    </div>
+  </div>`;
+  go('doctor');
+}
+function selectDay(el){document.querySelectorAll('.sch-day').forEach(d=>d.classList.remove('on'));el.classList.add('on')}
+function selectTime(el,t){document.querySelectorAll('.time-slot:not(.busy)').forEach(s=>s.classList.remove('on'));el.classList.add('on');selectedTime=t}
+
+/* ══════════════════════════════════════════
+   BOOKING FLOW
+══════════════════════════════════════════ */
+function startBookingWithDoctor(id){
+  selectedDoctor=DOCTORS.find(x=>x.id===id);
+  selectedSpec=selectedDoctor.spec;
+  bookingStep=3;
+  go('booking');
+}
+function renderBooking(){
+  [1,2,3,4].forEach(i=>{
+    const el=document.getElementById('bs'+i);
+    el.className='bstep'+(i<bookingStep?' done':i===bookingStep?' active':'');
+  });
+  const content=document.getElementById('booking-content');
+  if(bookingStep===1){
+    content.innerHTML=`
+    <div class="booking-card">
+      <div class="booking-title">الخطوة 1 — اختر التخصص الطبي</div>
+      <div class="spec-picker">${SPECS.slice(0,9).map(s=>`
+        <div class="spec-pick-item ${selectedSpec===s.name?'on':''}" onclick="pickSpec('${s.name}',this)">
+          <div class="icon">${s.icon}</div><div class="name">${s.name}</div>
+        </div>`).join('')}
+      </div>
+      <div style="margin-top:1.5rem;display:flex;justify-content:flex-left">
+        <button class="btn btn-primary" onclick="nextStep()" style="width:100%;justify-content:center">التالي ←</button>
+      </div>
+    </div>`;
+  }else if(bookingStep===2){
+    const filtered=selectedSpec?DOCTORS.filter(d=>d.spec===selectedSpec):DOCTORS;
+    const list=filtered.length?filtered:DOCTORS;
+    content.innerHTML=`
+    <div class="booking-card">
+      <div class="booking-title">الخطوة 2 — اختر الطبيب</div>
+      <div style="background:var(--bg);border-radius:var(--rs);padding:.75rem;margin-bottom:1rem;font-size:13px;color:var(--muted)">التخصص: <strong>${selectedSpec||'كل التخصصات'}</strong></div>
+      ${list.map(d=>`
+      <div class="doc-pick-item ${selectedDoctor&&selectedDoctor.id===d.id?'on':''}" onclick="pickDoctor(${d.id})">
+        <div class="doc-avatar" style="background:${d.color};width:48px;height:48px;font-size:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800">${d.init}</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:800">${d.name}</div>
+          <div style="font-size:13px;color:var(--p)">${d.spec}</div>
+          <div style="font-size:12px;color:var(--muted)">${d.hosp} — ${d.city}</div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:14px;font-weight:800;color:var(--p)">${d.price} درهم</div>
+          <span class="avail-badge ${d.avail?'avail-y':'avail-n'}" style="font-size:11px">${d.avail?'✅ متاح':'❌ غير متاح'}</span>
+        </div>
+      </div>`).join('')}
+      <div style="display:flex;gap:10px;margin-top:1rem">
+        <button class="btn btn-ghost" onclick="prevStep()">← رجوع</button>
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="nextStep()">التالي ←</button>
+      </div>
+    </div>`;
+  }else if(bookingStep===3){
+    const today=new Date();
+    const months=['يناير','فبراير','مارس','أبريل','ماي','يونيو','يوليوز','غشت','شتنبر','أكتوبر','نونبر','دجنبر'];
+    const days=['أح','إث','ثلا','أر','خم','جم','سب'];
+    let calHTML='';
+    const firstDay=new Date(today.getFullYear(),today.getMonth(),1).getDay();
+    const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    days.forEach(d=>{calHTML+=`<div class="cal-day-name">${d}</div>`});
+    for(let i=0;i<firstDay;i++)calHTML+=`<div class="cal-day empty"></div>`;
+    for(let d=1;d<=daysInMonth;d++){
+      const past=d<today.getDate();
+      const avail=!past&&d%5!==0&&d%7!==0;
+      calHTML+=`<div class="cal-day ${past?'past':avail?'avail':''} ${selectedDate==d?'selected':''}" onclick="${avail?`pickDate(${d},this)`:''}"><strong>${d}</strong></div>`;
+    }
+    const times=['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30'];
+    const busy=[1,4,7,10];
+    content.innerHTML=`
+    <div class="booking-card">
+      <div class="booking-title">الخطوة 3 — اختر التاريخ والوقت</div>
+      ${selectedDoctor?`<div style="background:var(--bg);border-radius:var(--rs);padding:.75rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:50%;background:${selectedDoctor.color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px">${selectedDoctor.init}</div>
+        <div><div style="font-size:14px;font-weight:800">${selectedDoctor.name}</div><div style="font-size:12px;color:var(--muted)">${selectedDoctor.spec} — ${selectedDoctor.hosp}</div></div>
+      </div>`:''}
+      <div style="font-size:14px;font-weight:700;margin-bottom:.5rem">📅 اختر التاريخ — ${months[today.getMonth()]} ${today.getFullYear()}</div>
+      <div class="cal-grid">${calHTML}</div>
+      <div style="font-size:14px;font-weight:700;margin:.75rem 0 .5rem">🕐 اختر الوقت</div>
+      <div class="time-slots">${times.map((t,i)=>`<div class="time-slot ${busy.includes(i)?'busy':''} ${selectedTime===t?'on':''}" onclick="${busy.includes(i)?'':`bookTime('${t}',this)`}">${t}</div>`).join('')}</div>
+      <div style="display:flex;gap:10px;margin-top:1.25rem">
+        <button class="btn btn-ghost" onclick="prevStep()">← رجوع</button>
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="nextStep()">التالي ←</button>
+      </div>
+    </div>`;
+  }else if(bookingStep===4){
+    const d=selectedDoctor||DOCTORS[0];
+    content.innerHTML=`
+    <div class="booking-card">
+      <div class="booking-title">الخطوة 4 — تأكيد الحجز</div>
+      <div class="confirm-summary">
+        <div class="confirm-row"><span>👨‍⚕️ الطبيب</span><strong>${d.name}</strong></div>
+        <div class="confirm-row"><span>🩺 التخصص</span><strong>${d.spec}</strong></div>
+        <div class="confirm-row"><span>🏥 المستشفى</span><strong>${d.hosp}</strong></div>
+        <div class="confirm-row"><span>📍 المدينة</span><strong>${d.city}</strong></div>
+        <div class="confirm-row"><span>📅 التاريخ</span><strong>${selectedDate?'يونيو '+selectedDate+' 2025':'الثلاثاء 24 يونيو 2025'}</strong></div>
+        <div class="confirm-row"><span>🕐 الوقت</span><strong>${selectedTime||'10:30'}</strong></div>
+        <div class="confirm-row"><span>💰 سعر الكشف</span><strong>${d.price} درهم</strong></div>
+      </div>
+      <div class="form-group"><label class="form-label">الاسم الكامل *</label><input class="form-input" placeholder="اسمك الكامل" value="يوسف العمراني"></div>
+      <div class="form-group"><label class="form-label">رقم الهاتف * (للتأكيد SMS)</label><input class="form-input" placeholder="06XXXXXXXX" value="0612345678" dir="ltr"></div>
+      <div class="form-group"><label class="form-label">رقم البطاقة الوطنية</label><input class="form-input" placeholder="AB123456" dir="ltr"></div>
+      <div class="form-group"><label class="form-label">سبب الزيارة (اختياري للطبيب)</label><textarea class="form-input" rows="2" placeholder="صف حالتك باختصار..."></textarea></div>
+      <div style="background:#FEF3C7;border-radius:var(--rs);padding:.75rem;font-size:13px;margin-bottom:1.25rem;color:#92400e">
+        📋 الوثائق المطلوبة: ${d.docs.join(' — ')}
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" onclick="prevStep()">← رجوع</button>
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="confirmBooking()">✅ تأكيد الحجز</button>
+      </div>
+    </div>`;
+  }
+}
+function pickSpec(name,el){selectedSpec=name;document.querySelectorAll('.spec-pick-item').forEach(x=>x.classList.remove('on'));el.classList.add('on')}
+function pickDoctor(id){selectedDoctor=DOCTORS.find(x=>x.id===id);document.querySelectorAll('.doc-pick-item').forEach(x=>x.classList.remove('on'));event.currentTarget.classList.add('on')}
+function pickDate(d,el){selectedDate=d;document.querySelectorAll('.cal-day.avail,.cal-day.selected').forEach(x=>x.classList.remove('selected'));el.classList.add('selected')}
+function bookTime(t,el){selectedTime=t;document.querySelectorAll('.time-slot:not(.busy)').forEach(x=>x.classList.remove('on'));el.classList.add('on')}
+function nextStep(){bookingStep=Math.min(4,bookingStep+1);renderBooking();window.scrollTo(0,0)}
+function prevStep(){bookingStep=Math.max(1,bookingStep-1);renderBooking();window.scrollTo(0,0)}
+function confirmBooking(){
+  const d=document.getElementById('confirmed-date');
+  const t=document.getElementById('confirmed-time');
+  if(d)d.textContent='الثلاثاء '+(selectedDate||24)+' يونيو 2025';
+  if(t)t.textContent=(selectedTime||'10:30')+' صباحاً';
+  go('success');
+  showToast('✅ تم تأكيد موعدك! ستصلك رسالة SMS');
+}
+
+/* ══════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════ */
+function renderDashboard(){
+  const up=document.getElementById('upcoming-list');
+  const hi=document.getElementById('history-list');
+  const fav=document.getElementById('favorites-list');
+  if(up&&!up.dataset.rendered){
+    up.dataset.rendered='1';
+    const upcoming=PATIENT_APPTS.filter(a=>a.status==='upcoming');
+    const history=PATIENT_APPTS.filter(a=>a.status!=='upcoming');
+    up.innerHTML=upcoming.map(a=>apptCard(a)).join('');
+    if(hi)hi.innerHTML=history.map(a=>apptCard(a)).join('');
+    if(fav)fav.innerHTML=DOCTORS.slice(0,4).map(d=>`
+    <div class="card" style="cursor:pointer" onclick="openDoctor(${d.id})">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="doc-avatar" style="background:${d.color};width:42px;height:42px;font-size:16px;border-radius:50%;flex-shrink:0">${d.init}</div>
+        <div><div style="font-size:14px;font-weight:800">${d.name}</div><div style="font-size:12px;color:var(--p)">${d.spec}</div></div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="event.stopPropagation();startBookingWithDoctor(${d.id})">📅 حجز سريع</button>
+    </div>`).join('');
+  }
+}
+function apptCard(a){
+  const statusMap={upcoming:{label:'قادم',cls:'sp-upcoming'},done:{label:'✅ منجز',cls:'sp-done'},cancelled:{label:'ملغى',cls:'sp-cancelled'}};
+  const s=statusMap[a.status]||statusMap.upcoming;
+  return`<div class="appt-card">
+    <div class="appt-date-box"><div class="appt-day">${a.day}</div><div class="appt-month">${a.month}</div></div>
+    <div class="appt-info">
+      <div class="appt-doctor">${a.doctor}</div>
+      <div class="appt-spec">${a.spec}</div>
+      <div class="appt-time">🕐 ${a.time} &nbsp;|&nbsp; 🏥 ${a.hosp}</div>
+    </div>
+    <div class="appt-status">
+      <div class="status-pill ${s.cls}">${s.label}</div>
+      ${a.status==='upcoming'?`<div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn btn-sm" style="padding:5px 10px;font-size:11px;border:1.5px solid var(--brd);border-radius:6px;background:none;cursor:pointer" onclick="showToast('تم إلغاء الموعد')">إلغاء</button>
+        <button class="btn btn-sm btn-ghost" style="font-size:11px;border-radius:6px" onclick="showToast('فتح إعادة الجدولة...')">تغيير</button>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+function dashMenu(el,id){
+  document.querySelectorAll('.dash-menu-item').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.dash-section').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+/* ══════════════════════════════════════════
+   ADMIN
+══════════════════════════════════════════ */
+function renderAdmin(){
+  if(document.getElementById('admin-today-list').dataset.rendered)return;
+  document.getElementById('admin-today-list').dataset.rendered='1';
+  const statusMap={done:'🟢 أُنجز',arrived:'🔵 وصل',waiting:'🟡 ينتظر',upcoming:'⚪ قادم',cancelled:'🔴 ملغى'};
+  document.getElementById('admin-today-list').innerHTML=TODAY_APPTS.map(a=>`
+  <div class="today-row">
+    <div class="today-time">${a.time}</div>
+    <div class="today-patient">
+      <div class="today-name">${a.name}</div>
+      <div class="today-reason">${a.reason} — ${a.doctor}</div>
+    </div>
+    <span class="tag ${a.status==='done'?'tag-g':a.status==='cancelled'?'tag-r':a.status==='arrived'?'tag-b':'tag-a'}">${statusMap[a.status]||a.status}</span>
+    <div class="today-action">
+      ${a.status==='waiting'?`<button class="btn btn-sm btn-primary" style="font-size:12px" onclick="showToast('تم استدعاء ${a.name}')">استدعاء</button>`:''}
+      ${a.status==='upcoming'?`<button class="btn btn-sm btn-ghost" style="font-size:12px" onclick="showToast('تم تأجيل الموعد')">تأجيل</button>`:''}
+    </div>
+  </div>`).join('');
+
+  document.getElementById('admin-doctors-list').innerHTML=DOCTORS.map(d=>`
+  <div class="today-row">
+    <div style="display:flex;align-items:center;gap:10px;flex:1">
+      <div class="doc-avatar" style="background:${d.color};width:42px;height:42px;font-size:16px;border-radius:50%;flex-shrink:0">${d.init}</div>
+      <div><div class="today-name">${d.name}</div><div class="today-reason">${d.spec} — ${d.city}</div></div>
+    </div>
+    <span class="tag ${d.avail?'tag-g':'tag-r'}">${d.avail?'✅ متاح':'❌ غير متاح'}</span>
+    <span style="font-size:13px;color:var(--muted)">${d.reviews} مريض هذا الشهر</span>
+    <div class="today-action">
+      <button class="btn btn-sm btn-ghost" style="font-size:12px" onclick="showToast('فتح جدول '+' ${d.name}')">الجدول</button>
+      <button class="btn btn-sm" style="font-size:12px;border:1px solid var(--brd);border-radius:6px;background:none;cursor:pointer;color:var(--red)" onclick="showToast('تم إيقاف جدول الطبيب مؤقتاً')">إيقاف</button>
+    </div>
+  </div>`).join('');
+
+  document.getElementById('all-appointments').innerHTML=`
+  <div class="today-header">كل المواعيد — يونيو 2025</div>`+TODAY_APPTS.slice(0,6).map(a=>`
+  <div class="today-row">
+    <div class="today-time">${a.time}</div>
+    <div class="today-patient"><div class="today-name">${a.name}</div><div class="today-reason">${a.reason}</div></div>
+    <div style="font-size:13px;color:var(--muted)">${a.doctor}</div>
+    <span class="tag ${a.status==='done'?'tag-g':a.status==='cancelled'?'tag-r':'tag-a'}">${a.status==='done'?'✅ منجز':a.status==='cancelled'?'❌ ملغى':'⏳ قادم'}</span>
+  </div>`).join('');
+
+  setTimeout(()=>{
+    const wCtx=document.getElementById('chart-weekly');
+    if(wCtx&&!wCtx.dataset.drawn){
+      wCtx.dataset.drawn='1';
+      new Chart(wCtx,{type:'bar',data:{labels:['إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت','أحد'],datasets:[{label:'المواعيد',data:[32,28,35,41,12,8,25],backgroundColor:'#0B6E4F',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
+    }
+    const sCtx=document.getElementById('chart-specs');
+    if(sCtx&&!sCtx.dataset.drawn){
+      sCtx.dataset.drawn='1';
+      new Chart(sCtx,{type:'doughnut',data:{labels:['قلب','أطفال','عيون','نساء','عظام','أخرى'],datasets:[{data:[28,22,15,18,11,6],backgroundColor:['#0B6E4F','#7C3AED','#0284C7','#C026D3','#B45309','#6B7280'],borderWidth:0}]},options:{plugins:{legend:{position:'right',labels:{font:{family:'Tajawal',size:12}}}},cutout:'60%'}});
+    }
+    const mCtx=document.getElementById('chart-monthly');
+    if(mCtx&&!mCtx.dataset.drawn){
+      mCtx.dataset.drawn='1';
+      const labels=Array.from({length:30},(_,i)=>(i+1)+'');
+      const data=labels.map(()=>Math.floor(20+Math.random()*25));
+      new Chart(mCtx,{type:'line',data:{labels,datasets:[{label:'مواعيد',data,fill:true,borderColor:'#0B6E4F',backgroundColor:'rgba(11,110,79,.08)',tension:.4,pointRadius:0}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f0f0f0'}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}}});
+    }
+  },200);
+}
+function adminMenu(el,id){
+  document.querySelectorAll('.admin-menu-item').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.admin-section').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='a-stats')renderAdmin();
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded',()=>{
+  renderHome();
+});
+</script>
+</body>
+</html>
